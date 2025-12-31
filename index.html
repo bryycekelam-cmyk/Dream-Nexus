@@ -1,175 +1,357 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { initializeApp, getApps } from 'firebase/app';
-import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
-import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
-import { Zap, Terminal, Play, Cpu, Copy, Check, X, Globe, Activity } from 'lucide-react';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEXUS ULTRA ✨</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore-compat.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&display=swap');
+        body { font-family: 'Space Grotesk', sans-serif; background-color: #050505; color: #e4e4e7; height: 100vh; overflow: hidden; }
+        .glass { background: rgba(20, 20, 20, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.05); }
+        .glow-blue { box-shadow: 0 0 20px rgba(37, 99, 235, 0.2); }
+        .glow-purple { box-shadow: 0 0 20px rgba(168, 85, 247, 0.2); }
+        .terminal-scroll::-webkit-scrollbar { width: 4px; }
+        .terminal-scroll::-webkit-scrollbar-thumb { background: #27272a; border-radius: 10px; }
+        @keyframes pulse-slow { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .pulse { animation: pulse-slow 2s infinite; }
+        .ai-border { border: 1px solid rgba(168, 85, 247, 0.3); }
+    </style>
+</head>
+<body class="p-4 md:p-6 flex flex-col h-screen overflow-hidden">
 
-// Firebase Logic
-const firebaseConfig = typeof __firebase_config !== 'undefined' 
-  ? JSON.parse(__firebase_config) 
-  : { apiKey: "", authDomain: "", projectId: "", storageBucket: "", messagingSenderId: "", appId: "" };
-
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-const auth = getAuth(app);
-const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'nexus-ultra-v1';
-
-const App = () => {
-  const [user, setUser] = useState(null);
-  const [prompt, setPrompt] = useState("");
-  const [logs, setLogs] = useState([]);
-  const [isThinking, setIsThinking] = useState(false);
-  const [isOnline, setIsOnline] = useState(false);
-  const [showModal, setShowModal] = useState(false);
-  const [copied, setCopied] = useState(false);
-
-  const addLog = useCallback((text, type = 'info') => {
-    setLogs(prev => [{ id: Date.now() + Math.random(), text, type, time: new Date().toLocaleTimeString() }, ...prev].slice(0, 20));
-  }, []);
-
-  useEffect(() => {
-    const startAuth = async () => {
-      try {
-        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          await signInWithCustomToken(auth, __initial_auth_token);
-        } else {
-          await signInAnonymously(auth);
-        }
-      } catch (err) { addLog("Auth Error", "error"); }
-    };
-    startAuth();
-    return onAuthStateChanged(auth, (u) => { if (u) { setUser(u); addLog("Nexus Link Established", "success"); } });
-  }, [addLog]);
-
-  useEffect(() => {
-    if (!user) return;
-    return onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'status', 'heartbeat'), (snap) => {
-      if (snap.exists()) {
-        const lastSeen = snap.data().lastSeen || 0;
-        setIsOnline(Date.now() - lastSeen < 25000);
-      }
-    }, () => setIsOnline(false));
-  }, [user]);
-
-  const transmit = async () => {
-    if (!prompt.trim() || isThinking || !user) return;
-    setIsThinking(true);
-    addLog("Transmitting neural packet...", "info");
-    try {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          systemInstruction: { parts: [{ text: "Output ONLY valid Luau code. No markdown formatting." }] }
-        })
-      });
-      const data = await res.json();
-      const code = data.candidates?.[0]?.content?.parts?.[0]?.text?.replace(/```lua|```/g, '').trim();
-      if (code) {
-        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'bridge', 'current'), { code, timestamp: Date.now(), sender: user.uid });
-        addLog("Sync Complete", "success");
-        setPrompt("");
-      }
-    } catch (e) { addLog("Transmission Failed", "error"); } finally { setIsThinking(false); }
-  };
-
-  const copyScript = () => {
-    const script = `-- Nexus Ultra Bridge\nlocal ID = "${appId}"\nlocal URL = "https://firestore.googleapis.com/v1/projects/v-canvas-prod/databases/(default)/documents/artifacts/"..ID.."/public/data/"\n-- Heartbeat loop\ntask.spawn(function() while true do pcall(function() game:GetService("HttpService"):RequestAsync({Url = URL.."status/heartbeat?updateMask.fieldPaths=lastSeen", Method = "PATCH", Body = game:GetService("HttpService"):JSONEncode({fields={lastSeen={integerValue=os.time()*1000}}})}) end) task.wait(10) end end)\n-- Listener loop\nlocal last = 0 while true do pcall(function() local r = game:GetService("HttpService"):GetAsync(URL.."bridge/current") local d = game:GetService("HttpService"):JSONDecode(r) if d.fields and d.fields.timestamp then local ts = tonumber(d.fields.timestamp.doubleValue or d.fields.timestamp.integerValue) if ts > last then last = ts loadstring(d.fields.code.stringValue)() end end end) task.wait(2) end`;
-    document.addEventListener('copy', (e) => { e.clipboardData.setData('text/plain', script); e.preventDefault(); }, { once: true });
-    document.execCommand('copy');
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  return (
-    <div className="flex flex-col h-screen w-full bg-black text-zinc-100 font-sans p-4 overflow-hidden">
-      {/* Header */}
-      <header className="flex items-center justify-between bg-zinc-900/50 border border-zinc-800 rounded-2xl p-4 mb-4">
-        <div className="flex items-center gap-3">
-          <div className="bg-blue-600 p-2 rounded-lg shadow-lg shadow-blue-900/40">
-            <Zap size={20} fill="white" />
-          </div>
-          <div>
-            <h1 className="text-lg font-black tracking-tighter uppercase italic">Nexus Ultra</h1>
-            <div className="flex items-center gap-2">
-              <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
-              <span className="text-[10px] font-bold text-zinc-500 uppercase">{isOnline ? 'Active' : 'Disconnected'}</span>
+    <!-- TOP BAR -->
+    <nav class="glass rounded-2xl p-4 mb-4 flex items-center justify-between glow-blue">
+        <div class="flex items-center gap-4">
+            <div class="bg-blue-600 p-2 rounded-lg">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
             </div>
-          </div>
-        </div>
-        <button onClick={() => setShowModal(true)} className="bg-zinc-800 hover:bg-zinc-700 text-xs font-bold px-4 py-2 rounded-xl transition-all flex items-center gap-2">
-          <Cpu size={14} /> Setup Bridge
-        </button>
-      </header>
-
-      {/* Main Content */}
-      <div className="flex flex-col lg:flex-row gap-4 flex-1 overflow-hidden">
-        {/* Editor */}
-        <div className="flex-[2] bg-zinc-900/30 border border-zinc-800 rounded-[32px] p-6 flex flex-col relative">
-          <div className="flex items-center gap-2 mb-4 text-zinc-500">
-            <Globe size={12} />
-            <span className="text-[10px] font-black uppercase tracking-widest">Global Uplink</span>
-          </div>
-          <textarea 
-            className="flex-1 bg-transparent border-none focus:ring-0 text-xl font-medium placeholder-zinc-800 resize-none leading-relaxed"
-            placeholder="Describe the system to generate..."
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-          />
-          <div className="flex items-center justify-between mt-4 pt-4 border-t border-zinc-800/50">
-             <div className="flex gap-2">
-                {['Combat', 'UI', 'Movement'].map(t => (
-                  <button key={t} onClick={() => setPrompt(p => p + `[${t}] `)} className="text-[9px] font-bold px-3 py-1 bg-zinc-800 rounded-lg hover:bg-zinc-700 transition-colors uppercase tracking-widest">{t}</button>
-                ))}
-             </div>
-             <button 
-                onClick={transmit}
-                disabled={!isOnline || isThinking}
-                className={`px-8 py-3 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all flex items-center gap-2 ${isOnline ? 'bg-white text-black hover:scale-105 active:scale-95' : 'bg-zinc-800 text-zinc-600 opacity-50'}`}
-             >
-                {isThinking ? <Activity size={16} className="animate-spin" /> : <Play size={14} fill="currentColor" />}
-                {isThinking ? 'Syncing' : 'Transmit'}
-             </button>
-          </div>
-        </div>
-
-        {/* Console */}
-        <div className="flex-1 bg-zinc-950 border border-zinc-800 rounded-[32px] flex flex-col overflow-hidden">
-          <div className="p-4 border-b border-zinc-800 bg-zinc-900/20 flex items-center gap-2">
-            <Terminal size={14} className="text-blue-500" />
-            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Telemetry Log</span>
-          </div>
-          <div className="flex-1 overflow-y-auto p-4 space-y-2 font-mono text-[10px]">
-            {logs.map(log => (
-              <div key={log.id} className={`flex gap-2 ${log.type === 'error' ? 'text-red-400' : log.type === 'success' ? 'text-green-400' : 'text-zinc-500'}`}>
-                <span className="opacity-30">[{log.time}]</span>
-                <span>{log.text}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Setup Overlay */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-6 z-50">
-          <div className="bg-zinc-900 border border-zinc-800 w-full max-w-lg rounded-[40px] p-8 relative">
-            <button onClick={() => setShowModal(false)} className="absolute top-6 right-6 text-zinc-500 hover:text-white"><X /></button>
-            <h2 className="text-2xl font-black italic uppercase tracking-tighter mb-2">Bridge Protocol</h2>
-            <p className="text-zinc-500 text-xs mb-6">Install this in a <b>ServerScript</b> within Roblox Studio to link the cloud.</p>
-            <div className="bg-black p-4 rounded-2xl font-mono text-[10px] text-blue-400/80 mb-6 h-48 overflow-y-auto relative border border-zinc-800">
-               <pre>{`-- Nexus Ultra Bridge\nlocal ID = "${appId}"\n... (Script is ready)`}</pre>
-               <button onClick={copyScript} className="absolute top-4 right-4 bg-white text-black px-4 py-2 rounded-lg font-bold text-[9px] flex items-center gap-2">
-                  {copied ? <Check size={12} /> : <Copy size={12} />} {copied ? 'COPIED' : 'COPY'}
-               </button>
+            <div>
+                <h1 class="font-bold tracking-tighter text-lg italic uppercase flex items-center gap-2">Nexus Ultra <span class="text-purple-400 text-xs normal-case font-normal not-italic">✨ AI Enhanced</span></h1>
+                <div class="flex items-center gap-2">
+                    <div id="status-dot" class="w-2 h-2 rounded-full bg-red-500 pulse"></div>
+                    <span id="status-text" class="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Awaiting Link</span>
+                </div>
             </div>
-            <button onClick={() => setShowModal(false)} className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all">Link Initialized</button>
-          </div>
         </div>
-      )}
+        <div class="flex gap-2">
+            <button onclick="toggleModal(true)" class="bg-zinc-800 hover:bg-zinc-700 px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all">Setup Bridge</button>
+        </div>
+    </nav>
+
+    <!-- MAIN INTERFACE -->
+    <main class="flex-1 flex flex-col lg:flex-row gap-4 overflow-hidden">
+        
+        <!-- LEFT: ARCHITECT & WRITER -->
+        <div class="flex-[2] flex flex-col gap-4 overflow-hidden">
+            <!-- ARCHITECT SUGGESTIONS ✨ -->
+            <div class="glass ai-border rounded-[24px] p-4 flex flex-col glow-purple min-h-[120px]">
+                <div class="text-[9px] font-black text-purple-400 uppercase tracking-[0.2em] mb-3 flex items-center gap-2">
+                    ✨ AI Architect Suggestions
+                </div>
+                <div id="ai-suggestions" class="text-xs text-zinc-400 leading-relaxed italic">
+                    Describe your system below to receive architectural advice...
+                </div>
+            </div>
+
+            <!-- WRITER -->
+            <div class="flex-1 glass rounded-[32px] p-6 flex flex-col overflow-hidden">
+                <div class="text-[10px] font-bold text-zinc-600 uppercase tracking-[0.2em] mb-4 flex items-center gap-2">
+                    <span class="w-4 h-px bg-zinc-800"></span> Neural Uplink
+                </div>
+                <textarea id="prompt-input" 
+                    oninput="debounceSuggest()"
+                    class="flex-1 bg-transparent border-none focus:ring-0 text-xl md:text-2xl placeholder-zinc-800 resize-none font-medium outline-none" 
+                    placeholder="Enter command (e.g., 'Create a round system with a 30s timer')..."></textarea>
+                
+                <div class="mt-4 pt-4 border-t border-zinc-800/50 flex flex-col gap-4">
+                    <div class="flex flex-wrap gap-2" id="tags">
+                        <button onclick="appendTag('UI')" class="text-[9px] font-bold px-3 py-1 bg-zinc-900 rounded-lg border border-zinc-800">UI</button>
+                        <button onclick="appendTag('Combat')" class="text-[9px] font-bold px-3 py-1 bg-zinc-900 rounded-lg border border-zinc-800">COMBAT</button>
+                        <!-- ✨ Dynamic tags will appear here -->
+                    </div>
+                    
+                    <div class="flex items-center justify-between">
+                        <button onclick="requestAnalysis()" class="text-purple-400 text-[10px] font-bold uppercase tracking-widest hover:text-purple-300 flex items-center gap-2">
+                            ✨ Analyze Logic
+                        </button>
+                        <button id="send-btn" onclick="transmitData()" class="bg-white text-black px-10 py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:scale-105 active:scale-95 transition-all flex items-center gap-2 shadow-xl">
+                            <span id="btn-text">Transmit</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT: TELEMETRY -->
+        <div class="flex-1 glass rounded-[32px] overflow-hidden flex flex-col bg-black/40 border border-zinc-800/50 shadow-2xl">
+            <div class="p-4 border-b border-zinc-800 text-[10px] font-bold uppercase tracking-widest text-zinc-500 flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                    <div class="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-[0_0_8px_#3b82f6]"></div>
+                    Telemetry
+                </div>
+                <span id="user-id-display" class="bg-zinc-800 px-2 py-0.5 rounded text-[8px]">--</span>
+            </div>
+            <div id="console" class="flex-1 overflow-y-auto p-4 font-mono text-[10px] space-y-2 terminal-scroll">
+                <div class="text-zinc-600">[00:00:00] Nexus OS Loaded. ✨ AI modules online.</div>
+            </div>
+        </div>
+    </main>
+
+    <!-- BRIDGE MODAL -->
+    <div id="modal" class="fixed inset-0 bg-black/95 backdrop-blur-2xl hidden items-center justify-center p-6 z-50">
+        <div class="glass max-w-lg w-full rounded-[40px] p-8 relative border border-white/10 shadow-[0_0_50px_rgba(0,0,0,1)]">
+            <button onclick="toggleModal(false)" class="absolute top-6 right-6 text-zinc-500 hover:text-white transition-colors">✕</button>
+            <h2 class="text-2xl font-bold italic uppercase mb-2 tracking-tighter">Bridge Protocol</h2>
+            <p class="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-6">Cloud Sync Interface</p>
+            <div class="bg-black/80 border border-zinc-800 rounded-2xl p-4 font-mono text-[10px] text-blue-400 mb-6 h-48 overflow-y-auto relative shadow-inner">
+                <pre id="script-code" class="whitespace-pre-wrap leading-relaxed">Generating bridge script...</pre>
+                <button onclick="copyToClipboard()" class="absolute top-4 right-4 bg-zinc-800 hover:bg-white hover:text-black border border-white/10 px-3 py-1.5 rounded-md font-bold text-[9px] transition-all">COPY</button>
+            </div>
+            <button onclick="toggleModal(false)" class="w-full py-4 bg-white text-black rounded-xl font-black uppercase text-xs tracking-[0.2em] hover:bg-blue-600 hover:text-white transition-all">System Ready</button>
+        </div>
     </div>
-  );
-};
 
-export default App;
+    <script>
+        // -- CONFIG --
+        const apiKey = ""; 
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'nexus-ultimate-v1';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+
+        // -- STATE --
+        let db, auth;
+        let suggestionTimeout;
+        const consoleEl = document.getElementById('console');
+        const inputEl = document.getElementById('prompt-input');
+        const aiSuggestions = document.getElementById('ai-suggestions');
+        const tagsContainer = document.getElementById('tags');
+
+        function addLog(msg, type = 'info') {
+            const time = new Date().toLocaleTimeString();
+            const color = type === 'error' ? 'text-red-400' : type === 'success' ? 'text-green-400' : type === 'ai' ? 'text-purple-400' : 'text-zinc-500';
+            const entry = document.createElement('div');
+            entry.className = color + " animate-in slide-in-from-left duration-300";
+            entry.innerHTML = `<span class="opacity-30">[${time}]</span> ${msg}`;
+            consoleEl.prepend(entry);
+        }
+
+        function toggleModal(show) {
+            document.getElementById('modal').style.display = show ? 'flex' : 'none';
+        }
+
+        function appendTag(tag) {
+            inputEl.value += `[${tag}] `;
+            inputEl.focus();
+        }
+
+        // -- ✨ GEMINI AI: TEXT-TO-SPEECH --
+        async function speak(text) {
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-tts:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: `Say in a professional robotic tone: ${text}` }] }],
+                        generationConfig: {
+                            responseModalities: ["AUDIO"],
+                            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: "Charon" } } }
+                        }
+                    })
+                });
+                const result = await response.json();
+                const pcmData = result.candidates[0].content.parts[0].inlineData.data;
+                
+                // Convert PCM to Playable WAV
+                const audioBlob = pcmToWav(pcmData, 24000);
+                const audio = new Audio(URL.createObjectURL(audioBlob));
+                audio.play();
+            } catch (e) {
+                console.error("TTS Failed", e);
+            }
+        }
+
+        function pcmToWav(base64Pcm, sampleRate) {
+            const buffer = Uint8Array.from(atob(base64Pcm), c => c.charCodeAt(0)).buffer;
+            const length = buffer.byteLength;
+            const wavHeader = new ArrayBuffer(44);
+            const view = new DataView(wavHeader);
+            view.setUint32(0, 0x52494646, false); view.setUint32(4, 36 + length, true); view.setUint32(8, 0x57415645, false);
+            view.setUint32(12, 0x666d7420, false); view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+            view.setUint32(24, sampleRate, true); view.setUint32(28, sampleRate * 2, true); view.setUint16(32, 2, true); view.setUint16(34, 16, true);
+            view.setUint32(36, 0x64617461, false); view.setUint32(40, length, true);
+            return new Blob([wavHeader, buffer], { type: 'audio/wav' });
+        }
+
+        // -- ✨ GEMINI AI: SMART TAGS & ARCHITECT --
+        function debounceSuggest() {
+            clearTimeout(suggestionTimeout);
+            suggestionTimeout = setTimeout(fetchAISuggestions, 1500);
+        }
+
+        async function fetchAISuggestions() {
+            const prompt = inputEl.value.trim();
+            if (prompt.length < 10) return;
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }] }],
+                        systemInstruction: { parts: [{ text: "Based on the user's Roblox prompt, suggest 2-3 single-word 'Smart Tags' and a 1-sentence 'Architect Advice'. Respond in JSON format: {tags: ['Tag1', 'Tag2'], advice: '...'}" }] },
+                        generationConfig: { responseMimeType: "application/json" }
+                    })
+                });
+                const result = await response.json();
+                const data = JSON.parse(result.candidates[0].content.parts[0].text);
+
+                // Update UI
+                aiSuggestions.innerHTML = `✨ <span class="text-white">${data.advice}</span>`;
+                
+                // Add Dynamic Tags
+                data.tags.forEach(tag => {
+                    if (![...tagsContainer.children].some(b => b.innerText === tag.toUpperCase())) {
+                        const btn = document.createElement('button');
+                        btn.onclick = () => appendTag(tag.toUpperCase());
+                        btn.className = "text-[9px] font-bold px-3 py-1 bg-purple-950/30 border border-purple-500/30 rounded-lg text-purple-300 hover:bg-purple-900 animate-pulse";
+                        btn.innerText = `✨ ${tag.toUpperCase()}`;
+                        tagsContainer.appendChild(btn);
+                    }
+                });
+            } catch (e) { console.error("AI Insight Failed", e); }
+        }
+
+        async function requestAnalysis() {
+            const prompt = inputEl.value.trim();
+            if (!prompt) return;
+            addLog("✨ Gemini logic analysis in progress...", "ai");
+            
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: `Analyze the logic of this Roblox request and suggest one potential performance optimization or security risk: ${prompt}` }] }]
+                    })
+                });
+                const result = await response.json();
+                const text = result.candidates[0].content.parts[0].text;
+                addLog(`✨ Architect: ${text.substring(0, 150)}...`, "ai");
+                speak("Neural analysis complete. Security risk assessment uploaded.");
+            } catch (e) { addLog("Logic analysis failed", "error"); }
+        }
+
+        // -- FIREBASE INIT --
+        async function init() {
+            try {
+                firebase.initializeApp(firebaseConfig);
+                auth = firebase.auth();
+                db = firebase.firestore();
+
+                const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                if (token) {
+                    await auth.signInWithCustomToken(token);
+                } else {
+                    await auth.signInAnonymously();
+                }
+
+                auth.onAuthStateChanged(user => {
+                    if (user) {
+                        addLog("Nexus Core Linked", "success");
+                        document.getElementById('user-id-display').innerText = user.uid.substring(0,8);
+                        setupHeartbeatListener();
+                    }
+                });
+
+                generateBridgeScript();
+            } catch (e) {
+                addLog("Core Error: " + e.message, "error");
+            }
+        }
+
+        function setupHeartbeatListener() {
+            // Updated Path for Rule 1: /artifacts/{appId}/public/data/{collectionName}
+            db.collection('artifacts').doc(appId).collection('public').doc('data').collection('status').doc('heartbeat')
+                .onSnapshot(doc => {
+                    if (doc.exists) {
+                        const lastSeen = doc.data().lastSeen || 0;
+                        const isOnline = (Date.now() - lastSeen) < 30000;
+                        updateStatus(isOnline);
+                    }
+                }, err => addLog("Status Sync Error", "error"));
+        }
+
+        function updateStatus(online) {
+            const dot = document.getElementById('status-dot');
+            const text = document.getElementById('status-text');
+            dot.className = `w-2 h-2 rounded-full ${online ? 'bg-green-500' : 'bg-red-500'} pulse shadow-[0_0_10px_${online?'#22c55e':'#ef4444'}]`;
+            text.innerText = online ? 'Active Link' : 'Bridge Offline';
+        }
+
+        async function transmitData() {
+            const prompt = inputEl.value.trim();
+            if (!prompt) return;
+
+            const btn = document.getElementById('send-btn');
+            const btnText = document.getElementById('btn-text');
+            
+            btn.disabled = true;
+            btn.classList.add('opacity-50');
+            btnText.innerText = "Transmitting...";
+            addLog("✨ Synthesizing Luau code with Gemini...", "ai");
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }] }],
+                        systemInstruction: { parts: [{ text: "You are a Luau expert. Output ONLY valid, safe, and efficient Luau code for Roblox. No explanations, no markdown tags. Ensure variables are local." }] }
+                    })
+                });
+
+                const data = await response.json();
+                const code = data.candidates[0].content.parts[0].text.replace(/```lua|```/g, "").trim();
+
+                await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('bridge').doc('current').set({
+                    code: code,
+                    timestamp: Date.now(),
+                    sender: auth.currentUser.uid
+                });
+
+                addLog("Packet Transferred Successfully", "success");
+                speak("Transmission complete. Script manifesting in studio.");
+                inputEl.value = "";
+            } catch (e) {
+                addLog("Transmission Interrupted", "error");
+                speak("Critical interference detected. Transmission aborted.");
+            } finally {
+                btn.disabled = false;
+                btn.classList.remove('opacity-50');
+                btnText.innerText = "Transmit";
+            }
+        }
+
+        function generateBridgeScript() {
+            const script = `-- Nexus Ultra Bridge\nlocal ID = "${appId}"\nlocal URL = "https://firestore.googleapis.com/v1/projects/v-canvas-prod/databases/(default)/documents/artifacts/"..ID.."/public/data/"\n\ntask.spawn(function() while true do pcall(function() game:GetService("HttpService"):RequestAsync({Url = URL.."status/heartbeat?updateMask.fieldPaths=lastSeen", Method = "PATCH", Body = game:GetService("HttpService"):JSONEncode({fields={lastSeen={integerValue=os.time()*1000}}})}) end) task.wait(10) end end)\n\nlocal last = 0 while true do pcall(function() local r = game:GetService("HttpService"):GetAsync(URL.."bridge/current") local d = game:GetService("HttpService"):JSONDecode(r) if d.fields and d.fields.timestamp then local ts = tonumber(d.fields.timestamp.doubleValue or d.fields.timestamp.integerValue) if ts > last then last = ts loadstring(d.fields.code.stringValue)() end end end) task.wait(2) end`;
+            document.getElementById('script-code').innerText = script;
+        }
+
+        function copyToClipboard() {
+            const text = document.getElementById('script-code').innerText;
+            const temp = document.createElement('textarea');
+            temp.value = text;
+            document.body.appendChild(temp);
+            temp.select();
+            document.execCommand('copy');
+            document.body.removeChild(temp);
+            addLog("Bridge Script Copied to Clipboard");
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
