@@ -13,6 +13,7 @@
             font-family: 'Inter', sans-serif;
             background-color: #050505;
             color: #e2e8f0;
+            overflow-x: hidden;
         }
         .code-font { font-family: 'JetBrains Mono', monospace; }
         
@@ -22,99 +23,135 @@
             border: 1px solid rgba(255, 255, 255, 0.05);
         }
 
-        /* Custom Scrollbar */
+        .idea-card {
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+        }
+        .idea-card:hover {
+            background: rgba(99, 102, 241, 0.1);
+            border-color: rgba(99, 102, 241, 0.3);
+            transform: translateY(-2px);
+        }
+
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: #475569; }
-
-        .shimmer {
-            background: linear-gradient(90deg, transparent, rgba(99, 102, 241, 0.1), transparent);
-            background-size: 200% 100%;
-            animation: shimmer 2s infinite;
-        }
-        @keyframes shimmer {
-            0% { background-position: -200% 0; }
-            100% { background-position: 200% 0; }
-        }
     </style>
 </head>
-<body class="min-h-screen overflow-x-hidden">
+<body class="min-h-screen">
 
-    <!-- Sidebar / Nav -->
     <nav class="fixed top-0 left-0 w-full h-16 glass z-50 flex items-center justify-between px-6 border-b border-white/5">
         <div class="flex items-center gap-3">
             <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
-                <i data-lucide="cpu" class="w-5 h-5 text-white"></i>
+                <i data-lucide="blocks" class="w-5 h-5 text-white"></i>
             </div>
-            <h1 class="text-lg font-extrabold tracking-tight text-white uppercase">Luau Hub</h1>
+            <h1 class="text-lg font-extrabold tracking-tight text-white uppercase italic">Bridge Hub</h1>
         </div>
         <div id="status-badge" class="flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10">
-            <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">System Online</span>
+            <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
+            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Bridge Connected</span>
         </div>
     </nav>
 
-    <main class="pt-24 pb-12 px-6 max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
+    <main class="pt-24 pb-12 px-6 max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
         
-        <!-- Left: Input Controls -->
-        <div class="lg:col-span-5 space-y-6">
-            <div class="glass p-6 rounded-2xl space-y-4">
-                <div class="flex items-center justify-between mb-2">
-                    <label class="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Neural Input</label>
-                    <i data-lucide="sparkles" class="w-4 h-4 text-indigo-400"></i>
+        <!-- Left Column: Ideas & Presets -->
+        <div class="lg:col-span-3 space-y-4">
+            <h2 class="text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Map Ideas</h2>
+            
+            <div class="space-y-3" id="ideas-container">
+                <!-- Group: Environmental -->
+                <div class="text-[9px] font-bold text-indigo-400 uppercase tracking-widest mt-6">Environmental</div>
+                <div onclick="applyIdea('Create a realistic day/night cycle script with smooth lighting transitions and shadows.')" class="idea-card glass p-3 rounded-xl border border-white/5">
+                    <div class="text-xs font-semibold text-white">Day/Night Cycle</div>
+                    <div class="text-[10px] text-slate-500 mt-1">Dynamic atmospheric lighting</div>
                 </div>
-                <textarea id="prompt-input" 
-                    placeholder="E.g., Create a ModuleScript for a custom particle emitter system..."
-                    class="w-full h-40 bg-black/40 border border-white/10 rounded-xl p-4 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all resize-none placeholder:text-slate-700 text-indigo-50"></textarea>
-                
-                <button id="generate-btn" class="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-indigo-600/20">
-                    <i data-lucide="zap" class="w-4 h-4 fill-current"></i>
-                    <span>GENERATE LUAU</span>
-                </button>
-            </div>
+                <div onclick="applyIdea('A system that generates falling autumn leaves or snow particles around the player.')" class="idea-card glass p-3 rounded-xl border border-white/5">
+                    <div class="text-xs font-semibold text-white">Weather FX</div>
+                    <div class="text-[10px] text-slate-500 mt-1">Particles for map ambiance</div>
+                </div>
 
-            <!-- Log Console -->
-            <div class="glass rounded-2xl overflow-hidden flex flex-col h-[300px]">
-                <div class="px-5 py-3 border-b border-white/5 bg-black/20 flex items-center justify-between">
-                    <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">System Monitor</span>
-                    <button onclick="clearLogs()" class="text-[10px] text-slate-600 hover:text-rose-400 font-bold uppercase">Clear</button>
+                <!-- Group: Mechanics -->
+                <div class="text-[9px] font-bold text-indigo-400 uppercase tracking-widest mt-6">Gameplay</div>
+                <div onclick="applyIdea('Create a round-based leaderboard system that tracks wins and resets every 5 minutes.')" class="idea-card glass p-3 rounded-xl border border-white/5">
+                    <div class="text-xs font-semibold text-white">Leaderboard</div>
+                    <div class="text-[10px] text-slate-500 mt-1">DataStore integration basics</div>
                 </div>
-                <div id="console-logs" class="flex-1 p-4 overflow-y-auto space-y-2 code-font text-[11px] text-slate-400">
-                    <!-- Logs injection -->
+                <div onclick="applyIdea('A proximity prompt system that opens a heavy vault door with sound effects.')" class="idea-card glass p-3 rounded-xl border border-white/5">
+                    <div class="text-xs font-semibold text-white">Animated Vault</div>
+                    <div class="text-[10px] text-slate-500 mt-1">TweenService & Proximity</div>
+                </div>
+
+                <!-- Group: UI -->
+                <div class="text-[9px] font-bold text-indigo-400 uppercase tracking-widest mt-6">Interface</div>
+                <div onclick="applyIdea('Create a modern custom Health bar UI that shakes when the player takes damage.')" class="idea-card glass p-3 rounded-xl border border-white/5">
+                    <div class="text-xs font-semibold text-white">Damage Feedback</div>
+                    <div class="text-[10px] text-slate-500 mt-1">Custom GUI & Animations</div>
                 </div>
             </div>
         </div>
 
-        <!-- Right: Code Output -->
-        <div class="lg:col-span-7 h-full">
+        <!-- Middle Column: Editor -->
+        <div class="lg:col-span-5 space-y-4">
+            <div class="glass p-5 rounded-2xl space-y-4 border border-white/10 shadow-xl">
+                <div class="flex items-center justify-between">
+                    <label class="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em]">Bridge Input</label>
+                    <span class="text-[9px] text-slate-600 font-mono">v2.1.0-stable</span>
+                </div>
+                <textarea id="prompt-input" 
+                    placeholder="Describe a script or click an idea on the left..."
+                    class="w-full h-48 bg-black/40 border border-white/10 rounded-xl p-4 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all resize-none placeholder:text-slate-700 text-indigo-50"></textarea>
+                
+                <button id="generate-btn" class="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-lg shadow-indigo-900/40">
+                    <i data-lucide="zap" class="w-4 h-4 fill-current"></i>
+                    <span>GENERATE & SEND TO PLUG-IN</span>
+                </button>
+            </div>
+
+            <div class="glass rounded-2xl overflow-hidden flex flex-col h-[235px] border border-white/5">
+                <div class="px-5 py-3 border-b border-white/5 bg-black/20 flex items-center justify-between">
+                    <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Bridge Console</span>
+                    <button onclick="clearLogs()" class="text-[10px] text-slate-600 hover:text-indigo-400 font-bold uppercase transition-colors">Clear</button>
+                </div>
+                <div id="console-logs" class="flex-1 p-4 overflow-y-auto space-y-2 code-font text-[11px] text-slate-400"></div>
+            </div>
+        </div>
+
+        <!-- Right Column: Code View -->
+        <div class="lg:col-span-4 h-full">
             <div class="glass rounded-2xl flex flex-col h-full min-h-[600px] border border-white/10 shadow-2xl relative">
-                <div class="flex items-center justify-between px-6 py-4 border-b border-white/5">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-white/[0.02]">
                     <div class="flex items-center gap-3">
-                        <i data-lucide="code-2" class="w-4 h-4 text-indigo-400"></i>
-                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">MainModule.lua</span>
+                        <i data-lucide="file-code" class="w-4 h-4 text-indigo-400"></i>
+                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Bridge_Payload.lua</span>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <button onclick="copyToClipboard()" class="flex items-center gap-2 px-3 py-1.5 hover:bg-white/5 rounded-lg transition-all text-slate-400 hover:text-white">
-                            <i data-lucide="copy" class="w-3.5 h-3.5"></i>
-                            <span class="text-[10px] font-bold">COPY</span>
-                        </button>
-                    </div>
+                    <button onclick="copyToClipboard()" class="p-2 hover:bg-white/5 rounded-lg text-slate-500 hover:text-white transition-colors">
+                        <i data-lucide="copy" class="w-4 h-4"></i>
+                    </button>
                 </div>
 
-                <div id="loading-overlay" class="hidden absolute inset-0 z-10 bg-black/60 backdrop-blur-sm items-center justify-center flex-col gap-4">
-                    <div class="w-12 h-12 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
-                    <span class="text-[10px] font-black text-indigo-400 tracking-[0.3em] uppercase animate-pulse">Processing</span>
+                <div id="loading-overlay" class="hidden absolute inset-0 z-10 bg-black/80 backdrop-blur-md items-center justify-center flex-col gap-4">
+                    <div class="relative">
+                        <div class="w-16 h-16 border-2 border-indigo-500/20 rounded-full"></div>
+                        <div class="w-16 h-16 border-t-2 border-indigo-500 rounded-full animate-spin absolute top-0"></div>
+                    </div>
+                    <span class="text-[10px] font-black text-indigo-400 tracking-[0.4em] uppercase animate-pulse">Compiling Luau</span>
                 </div>
 
-                <pre id="code-display" class="flex-1 p-8 code-font text-sm leading-relaxed overflow-auto text-indigo-100 whitespace-pre-wrap">-- Awaiting input...
--- Generated code will appear here with syntax styling.</pre>
+                <pre id="code-display" class="flex-1 p-6 code-font text-[13px] leading-relaxed overflow-auto text-indigo-100/80 whitespace-pre-wrap">-- Bridge Ready. 
+-- Waiting for prompt or idea selection...</pre>
+                
+                <div class="p-4 bg-indigo-600/5 border-t border-white/5">
+                    <div class="flex items-center justify-between text-[10px] text-indigo-300/50 font-bold uppercase tracking-widest">
+                        <span>Lines: <span id="line-count">0</span></span>
+                        <span>Mode: Server/Client</span>
+                    </div>
+                </div>
             </div>
         </div>
     </main>
 
     <script>
-        // Init Lucide Icons
         lucide.createIcons();
 
         const promptInput = document.getElementById('prompt-input');
@@ -122,10 +159,11 @@
         const codeDisplay = document.getElementById('code-display');
         const consoleLogs = document.getElementById('console-logs');
         const loadingOverlay = document.getElementById('loading-overlay');
-        const apiKey = ""; // Managed by runtime environment
+        const lineCount = document.getElementById('line-count');
+        const apiKey = ""; // Managed by environment
 
         function addLog(msg, type = 'info') {
-            const time = new Date().toLocaleTimeString([], { hour12: false });
+            const time = new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
             const colors = {
                 info: 'text-slate-500',
                 success: 'text-emerald-400',
@@ -133,14 +171,20 @@
                 warn: 'text-amber-400'
             };
             const logEntry = document.createElement('div');
-            logEntry.className = 'flex gap-3 leading-tight animate-in fade-in duration-300';
-            logEntry.innerHTML = `<span class="text-slate-700 shrink-0">[${time}]</span><span class="${colors[type]}">${msg}</span>`;
+            logEntry.className = 'flex gap-3 leading-tight animate-in slide-in-from-left-2 duration-300';
+            logEntry.innerHTML = `<span class="text-slate-800 shrink-0 font-bold">${time}</span><span class="${colors[type]}">${msg}</span>`;
             consoleLogs.prepend(logEntry);
         }
 
         function clearLogs() {
             consoleLogs.innerHTML = '';
-            addLog('Console cleared', 'info');
+            addLog('Bridge console reset', 'info');
+        }
+
+        function applyIdea(text) {
+            promptInput.value = text;
+            addLog(`Idea selected: ${text.substring(0, 30)}...`, 'info');
+            generateBtn.click();
         }
 
         async function fetchLuau(prompt, attempt = 0) {
@@ -152,26 +196,35 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         contents: [{ 
-                            parts: [{ text: `Generate a highly optimized, production-ready Roblox Luau script for: ${prompt}. Return ONLY the raw code without any markdown formatting (no backticks). Ensure it uses --!strict for type checking.` }] 
+                            parts: [{ text: `Task: Generate a Roblox Luau script for: ${prompt}. 
+                            Guidelines:
+                            1. Output RAW Luau code only.
+                            2. Do NOT use markdown code blocks (no \`\`\`).
+                            3. Use --!strict for all scripts.
+                            4. Include helpful comments inside the code.
+                            5. If the request is a UI, generate the script to create the UI programmatically.` }] 
                         }],
                         systemInstruction: { 
-                            parts: [{ text: "You are a Master Roblox Engine Engineer. Use proper Luau conventions. No yapping." }] 
+                            parts: [{ text: "You are an expert Roblox Luau Architect. Output clean, bug-free, and performance-optimized code." }] 
                         }
                     })
                 });
 
-                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                if (!response.ok) throw new Error(`Engine Error: ${response.status}`);
                 
                 const data = await response.json();
-                const code = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                let code = data.candidates?.[0]?.content?.parts?.[0]?.text;
                 
-                if (!code) throw new Error("Empty response from engine");
+                if (!code) throw new Error("Synthesis produced null output.");
+                
+                // Clean any stray markdown if the model ignored the instruction
+                code = code.replace(/```lua/g, '').replace(/```luau/g, '').replace(/```/g, '');
                 
                 return code.trim();
 
             } catch (err) {
                 if (attempt < 4) {
-                    addLog(`Error: ${err.message}. Retrying... (${attempt + 1}/5)`, 'warn');
+                    addLog(`Link unstable, retrying handshake... (${attempt + 1}/5)`, 'warn');
                     await new Promise(r => setTimeout(r, delays[attempt]));
                     return fetchLuau(prompt, attempt + 1);
                 }
@@ -181,19 +234,37 @@
 
         generateBtn.addEventListener('click', async () => {
             const prompt = promptInput.value.trim();
-            if (!prompt) return addLog('Please enter a prompt', 'warn');
+            if (!prompt) return addLog('Awaiting prompt input...', 'warn');
 
             generateBtn.disabled = true;
             loadingOverlay.classList.remove('hidden');
             loadingOverlay.classList.add('flex');
-            addLog('Initiating neural synthesis sequence...', 'info');
+            addLog('Handshaking with Luau Synthesis Engine...', 'info');
 
             try {
                 const result = await fetchLuau(prompt);
                 codeDisplay.textContent = result;
+                
+                const lines = result.split('\n').length;
+                lineCount.textContent = lines;
+
                 addLog('Script synthesized successfully', 'success');
+                addLog('Sending payload to Plugin Bridge...', 'info');
+                
+                // The Bridge Connection Logic
+                // We dispatch an event that the Studio Plugin can listen to via the browser's external interface
+                window.dispatchEvent(new CustomEvent('LuauBridge_SendCode', { 
+                    detail: { 
+                        code: result,
+                        source: 'Bridge_Hub_v2'
+                    } 
+                }));
+                
+                addLog('Bridge Transmission: OK', 'success');
+
             } catch (err) {
                 addLog(`Critical Failure: ${err.message}`, 'error');
+                codeDisplay.textContent = "-- SYNTHESIS ERROR\n-- Please try a different prompt or check connection.";
             } finally {
                 generateBtn.disabled = false;
                 loadingOverlay.classList.add('hidden');
@@ -209,11 +280,10 @@
             temp.select();
             document.execCommand('copy');
             document.body.removeChild(temp);
-            addLog('Copied code to clipboard', 'success');
+            addLog('Payload copied to clipboard', 'success');
         }
 
-        // Initial Log
-        addLog('Luau Dev Hub kernel initialized', 'info');
+        addLog('Bridge kernel v2.1.0 online', 'info');
     </script>
 </body>
 </html>
