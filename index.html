@@ -3,271 +3,213 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Luau Developer Hub | Secure Bridge</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <title>Ultimate Tap Simulator</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@400;600;800&display=swap');
+        body { margin: 0; overflow: hidden; background: #111; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        canvas { display: block; transition: background 0.5s ease; }
         
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: #050505;
-            color: #e2e8f0;
-            overflow: hidden;
-        }
-        .code-font { font-family: 'JetBrains Mono', monospace; }
-        
-        .glass {
-            background: rgba(15, 15, 20, 0.7);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.05);
+        /* UI Overlays */
+        #ui-layer {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
         }
 
-        .status-ping {
-            animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+        .stats-panel { position: absolute; top: 20px; left: 20px; pointer-events: auto; }
+        .index-panel { 
+            position: absolute; top: 20px; right: 20px; 
+            background: rgba(0,0,0,0.6); padding: 15px; 
+            border-radius: 10px; border: 2px solid gold;
+            pointer-events: auto; max-height: 300px; overflow-y: auto;
         }
 
-        @keyframes ping {
-            75%, 100% { transform: scale(2); opacity: 0; }
-        }
+        .controls-hint { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); text-align: center; }
 
-        .pairing-overlay {
-            background: radial-gradient(circle at center, rgba(79, 70, 229, 0.15) 0%, rgba(5, 5, 5, 0.95) 100%);
+        button {
+            pointer-events: auto;
+            padding: 10px 20px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            background: #ffcc00;
+            border: none;
+            border-radius: 5px;
+            margin: 5px;
+            transition: transform 0.1s;
         }
+        button:active { transform: scale(0.95); }
+        button:disabled { background: #555; cursor: not-allowed; }
 
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+        .pet-item { color: #00ffcc; font-size: 14px; margin-bottom: 5px; border-bottom: 1px solid #444; }
     </style>
 </head>
-<body class="min-h-screen">
+<body>
 
-    <!-- Pairing Modal (Shows when not connected) -->
-    <div id="auth-overlay" class="fixed inset-0 z-[100] flex items-center justify-center pairing-overlay backdrop-blur-sm px-6">
-        <div class="glass max-w-md w-full p-8 rounded-3xl border border-white/10 shadow-2xl text-center space-y-6">
-            <div class="w-16 h-16 bg-indigo-600/20 rounded-2xl flex items-center justify-center mx-auto border border-indigo-500/30">
-                <i data-lucide="unplug" class="w-8 h-8 text-indigo-400"></i>
-            </div>
-            <div>
-                <h2 class="text-2xl font-extrabold text-white tracking-tight">Bridge Pairing</h2>
-                <p class="text-slate-400 text-sm mt-2">Enter the code below into your Roblox Studio Plugin to establish a secure data link.</p>
-            </div>
-            
-            <div class="py-4 px-6 bg-black/40 rounded-2xl border border-white/5 inline-block mx-auto">
-                <span id="session-code" class="text-3xl font-black tracking-[0.3em] text-indigo-400 code-font">----</span>
-            </div>
-
-            <div class="space-y-3">
-                <div class="flex items-center gap-3 text-left p-3 rounded-xl bg-white/5 border border-white/5">
-                    <div class="w-6 h-6 rounded-full bg-indigo-500/20 flex items-center justify-center text-[10px] font-bold text-indigo-400">1</div>
-                    <p class="text-[11px] text-slate-300">Open <span class="text-indigo-300 font-bold">Luau Bridge Plugin</span> in Studio</p>
-                </div>
-                <div class="flex items-center gap-3 text-left p-3 rounded-xl bg-white/5 border border-white/5">
-                    <div class="w-6 h-6 rounded-full bg-indigo-500/20 flex items-center justify-center text-[10px] font-bold text-indigo-400">2</div>
-                    <p class="text-[11px] text-slate-300">Type the 4-digit code and press <span class="text-indigo-300 font-bold">Connect</span></p>
-                </div>
-            </div>
-
-            <div class="flex items-center justify-center gap-2 pt-4">
-                <div class="w-2 h-2 rounded-full bg-rose-500 animate-pulse"></div>
-                <span class="text-[10px] font-black text-rose-500/80 uppercase tracking-widest">Awaiting Studio Handshake...</span>
-            </div>
-        </div>
+<div id="ui-layer">
+    <div class="stats-panel">
+        <h1 style="font-size: 40px; margin: 0;">Taps: <span id="tapCount">0</span></h1>
+        <h2 style="color: #00ffcc;">Rebirths: <span id="rebirthCount">0</span></h2>
+        <button onclick="doRebirth()">REBIRTH (Cost: <span id="rebirthCost">1000</span>)</button>
+        <button onclick="hatchEgg()" id="hatchBtn">HATCH EGG (500 Taps)</button>
     </div>
 
-    <nav class="fixed top-0 left-0 w-full h-16 glass z-50 flex items-center justify-between px-6 border-b border-white/5">
-        <div class="flex items-center gap-3">
-            <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
-                <i data-lucide="blocks" class="w-5 h-5 text-white"></i>
-            </div>
-            <h1 class="text-lg font-extrabold tracking-tight text-white uppercase italic">Bridge Hub</h1>
-        </div>
-        <div id="status-container" class="flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/20">
-            <div class="relative flex h-2 w-2">
-                <span id="status-ping" class="hidden absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 status-ping"></span>
-                <span id="status-dot" class="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
-            </div>
-            <span id="status-text" class="text-[10px] font-bold text-rose-400 uppercase tracking-widest">Disconnected</span>
-        </div>
-    </nav>
+    <div class="index-panel">
+        <h3 style="margin-top: 0; color: gold;">🐾 PET INDEX</h3>
+        <div id="petList">No pets yet...</div>
+    </div>
 
-    <main class="pt-24 pb-12 px-6 max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-6rem)]">
-        
-        <!-- Left Column: Ideas -->
-        <div class="lg:col-span-3 space-y-4 overflow-y-auto pr-2">
-            <h2 class="text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Quick Templates</h2>
-            <div class="space-y-3" id="ideas-container">
-                <div onclick="applyIdea('Create a currency system with a Leaderboard.')" class="idea-card glass p-4 rounded-2xl border border-white/5 hover:border-indigo-500/30 transition-all cursor-pointer">
-                    <div class="text-xs font-bold text-white uppercase">Economy Base</div>
-                    <div class="text-[10px] text-slate-500 mt-1">DataStore + UI Handling</div>
-                </div>
-                <div onclick="applyIdea('A smooth door system using TweenService and ProximityPrompts.')" class="idea-card glass p-4 rounded-2xl border border-white/5 hover:border-indigo-500/30 transition-all cursor-pointer">
-                    <div class="text-xs font-bold text-white uppercase">Interactive Door</div>
-                    <div class="text-[10px] text-slate-500 mt-1">TweenService Implementation</div>
-                </div>
-            </div>
-        </div>
+    <div class="controls-hint">
+        <p><b>WASD</b> to Walk | <b>SPACE</b> to Tap | <b>R</b> to Rebirth</p>
+        <p id="biomeText" style="font-weight: bold; font-size: 20px; color: #fff;"></p>
+    </div>
+</div>
 
-        <!-- Middle Column: Prompt -->
-        <div class="lg:col-span-5 space-y-4 flex flex-col">
-            <div class="glass p-6 rounded-3xl space-y-4 border border-white/10 shadow-xl">
-                <label class="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em]">Luau Engine Input</label>
-                <textarea id="prompt-input" 
-                    placeholder="Describe the functionality you want to bridge..."
-                    class="w-full h-40 bg-black/40 border border-white/10 rounded-2xl p-4 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all resize-none placeholder:text-slate-700 text-indigo-50"></textarea>
-                
-                <button id="generate-btn" class="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98]">
-                    <i data-lucide="zap" class="w-4 h-4 fill-current"></i>
-                    <span>EXECUTE TO STUDIO</span>
-                </button>
-            </div>
+<canvas id="gameCanvas"></canvas>
 
-            <div class="glass rounded-3xl overflow-hidden flex flex-col flex-1 border border-white/5">
-                <div class="px-5 py-3 border-b border-white/5 bg-black/20 flex items-center justify-between">
-                    <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Bridge Console</span>
-                    <button onclick="clearLogs()" class="text-[9px] text-slate-600 hover:text-indigo-400 font-bold uppercase tracking-tighter">Clear Logs</button>
-                </div>
-                <div id="console-logs" class="flex-1 p-4 overflow-y-auto space-y-2 code-font text-[11px] text-slate-400"></div>
-            </div>
-        </div>
+<script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    
+    // --- Configuration & Data ---
+    const PET_TYPES = [
+        { name: "Common Dog", chance: 0.60, mult: 1.2, color: "#8B4513" },
+        { name: "Rare Cat", chance: 0.30, mult: 2.5, color: "#D2B48C" },
+        { name: "Epic Dragon", chance: 0.08, mult: 10, color: "#FF4500" },
+        { name: "LEGENDARY GLITCH", chance: 0.02, mult: 50, color: "#FF00FF" }
+    ];
 
-        <!-- Right Column: Code Output -->
-        <div class="lg:col-span-4 h-full">
-            <div class="glass rounded-3xl flex flex-col h-full border border-white/10 shadow-2xl relative overflow-hidden">
-                <div class="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-white/[0.02]">
-                    <div class="flex items-center gap-3">
-                        <i data-lucide="terminal" class="w-4 h-4 text-indigo-400"></i>
-                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Live_Bridge.lua</span>
-                    </div>
-                </div>
+    const BIOMES = [
+        { name: "Grassy Plains", color: "#45a247", req: 0 },
+        { name: "Frozen Tundra", color: "#83a4d4", req: 5 },
+        { name: "Void Zone", color: "#16222a", req: 15 }
+    ];
 
-                <div id="loading-overlay" class="hidden absolute inset-0 z-10 bg-black/80 backdrop-blur-md items-center justify-center flex-col gap-4">
-                    <div class="w-10 h-10 border-2 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
-                    <span class="text-[9px] font-black text-indigo-400 tracking-[0.4em] uppercase">Syncing...</span>
-                </div>
+    let player = {
+        x: window.innerWidth / 2,
+        y: window.innerHeight / 2,
+        size: 50,
+        speed: 5,
+        taps: 0,
+        rebirths: 0,
+        pets: [],
+        color: "#fff"
+    };
 
-                <pre id="code-display" class="flex-1 p-6 code-font text-[12px] leading-relaxed overflow-auto text-indigo-100/70 whitespace-pre-wrap">-- Awaiting instructions...</pre>
-            </div>
-        </div>
-    </main>
+    let keys = {};
 
-    <script>
-        lucide.createIcons();
+    // --- Core Logic ---
+    function init() {
+        resize();
+        window.addEventListener("keydown", (e) => { 
+            keys[e.key.toLowerCase()] = true; 
+            if(e.code === "Space") tap();
+            if(e.key === "r") doRebirth();
+        });
+        window.addEventListener("keyup", (e) => keys[e.key.toLowerCase()] = false);
+        window.addEventListener("resize", resize);
+        update();
+    }
 
-        const promptInput = document.getElementById('prompt-input');
-        const generateBtn = document.getElementById('generate-btn');
-        const codeDisplay = document.getElementById('code-display');
-        const consoleLogs = document.getElementById('console-logs');
-        const loadingOverlay = document.getElementById('loading-overlay');
-        const authOverlay = document.getElementById('auth-overlay');
-        const sessionCodeDisplay = document.getElementById('session-code');
-        const statusText = document.getElementById('status-text');
-        const statusDot = document.getElementById('status-dot');
-        const statusPing = document.getElementById('status-ping');
-        const statusContainer = document.getElementById('status-container');
-        
-        let isConnected = false;
-        const apiKey = ""; 
+    function resize() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
 
-        // Generate a random 4-digit pairing code
-        const pairingCode = Math.floor(1000 + Math.random() * 9000).toString();
-        sessionCodeDisplay.innerText = pairingCode;
+    function tap() {
+        let petBonus = player.pets.reduce((acc, pet) => acc + pet.mult, 1);
+        player.taps += (1 + player.rebirths) * petBonus;
+        updateUI();
+    }
 
-        function addLog(msg, type = 'info') {
-            const time = new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-            const colors = {
-                info: 'text-slate-500',
-                success: 'text-emerald-400',
-                error: 'text-rose-400',
-                bridge: 'text-indigo-400'
-            };
-            const logEntry = document.createElement('div');
-            logEntry.className = 'flex gap-2 animate-in fade-in duration-300';
-            logEntry.innerHTML = `<span class="text-slate-800 font-bold shrink-0">${time}</span> <span class="${colors[type]}">${msg}</span>`;
-            consoleLogs.prepend(logEntry);
+    function doRebirth() {
+        let cost = (player.rebirths + 1) * 1000;
+        if (player.taps >= cost) {
+            player.taps = 0;
+            player.rebirths++;
+            updateUI();
         }
+    }
 
-        // SECURE HANDSHAKE LISTENER
-        window.addEventListener('message', (event) => {
-            const data = event.data;
-            
-            // Expected from Roblox Plugin:
-            // window.postMessage({ type: 'ROBLOX_AUTH_ATTEMPT', code: '1234' }, '*')
-            if (data.type === 'ROBLOX_AUTH_ATTEMPT') {
-                if (data.code === pairingCode) {
-                    establishConnection();
-                    addLog(`Secure Handshake: Connection Verified`, 'success');
-                } else {
-                    addLog(`Rejected Handshake: Invalid Pairing Code (${data.code})`, 'error');
+    function hatchEgg() {
+        if (player.taps >= 500) {
+            player.taps -= 500;
+            let rand = Math.random();
+            let cumulativeChance = 0;
+            let selectedPet = PET_TYPES[0];
+
+            for (let pet of PET_TYPES) {
+                cumulativeChance += pet.chance;
+                if (rand <= cumulativeChance) {
+                    selectedPet = pet;
+                    break;
                 }
             }
-        });
-
-        function establishConnection() {
-            isConnected = true;
-            authOverlay.classList.add('hidden');
             
-            statusText.innerText = "Bridge Linked";
-            statusText.classList.replace('text-rose-400', 'text-emerald-400');
-            statusDot.classList.replace('bg-rose-500', 'bg-emerald-500');
-            statusPing.classList.remove('hidden');
-            statusContainer.classList.replace('bg-rose-500/10', 'bg-emerald-500/10');
-            statusContainer.classList.replace('border-rose-500/20', 'border-emerald-500/20');
+            player.pets.push({...selectedPet});
+            updatePetIndex();
+            updateUI();
+        }
+    }
+
+    function updateUI() {
+        document.getElementById("tapCount").innerText = Math.floor(player.taps);
+        document.getElementById("rebirthCount").innerText = player.rebirths;
+        document.getElementById("rebirthCost").innerText = (player.rebirths + 1) * 1000;
+        document.getElementById("hatchBtn").disabled = player.taps < 500;
+    }
+
+    function updatePetIndex() {
+        const list = document.getElementById("petList");
+        list.innerHTML = player.pets.map(p => `<div class="pet-item">${p.name} (x${p.mult})</div>`).join("");
+    }
+
+    // --- Game Loop ---
+    function update() {
+        // Movement
+        if (keys['w']) player.y -= player.speed;
+        if (keys['s']) player.y += player.speed;
+        if (keys['a']) player.x -= player.speed;
+        if (keys['d']) player.x += player.speed;
+
+        // Determine Biome
+        let currentBiome = BIOMES[0];
+        BIOMES.forEach(b => { if (player.rebirths >= b.req) currentBiome = b; });
+        canvas.style.backgroundColor = currentBiome.color;
+        document.getElementById("biomeText").innerText = "Biome: " + currentBiome.name;
+
+        draw();
+        requestAnimationFrame(update);
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Draw Player "Rig" (Square for now, custom skin-able)
+        ctx.fillStyle = player.color;
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = "rgba(0,0,0,0.3)";
+        ctx.fillRect(player.x, player.y, player.size, player.size);
+        
+        // Draw Pets following player
+        player.pets.forEach((pet, i) => {
+            let time = Date.now() / 500;
+            let spacing = (i + 1) * 40;
+            let px = player.x + Math.cos(time + i) * spacing;
+            let py = player.y + Math.sin(time + i) * spacing;
             
-            addLog(`Authenticated Session: BRIDGE-${pairingCode}`, 'bridge');
-        }
-
-        async function fetchLuau(prompt) {
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    contents: [{ parts: [{ text: `Write a Roblox Luau script for: ${prompt}. Return only code.` }] }],
-                    systemInstruction: { parts: [{ text: "Expert Roblox Developer. Output valid Luau code only. No markdown." }] }
-                })
-            });
-
-            const data = await response.json();
-            let code = data.candidates?.[0]?.content?.parts?.[0]?.text || "-- Error generating code";
-            return code.replace(/```lua/g, '').replace(/```/g, '').trim();
-        }
-
-        generateBtn.addEventListener('click', async () => {
-            const prompt = promptInput.value.trim();
-            if (!prompt || !isConnected) return;
-
-            generateBtn.disabled = true;
-            loadingOverlay.classList.replace('hidden', 'flex');
-            addLog('Encoding AI request...', 'info');
-
-            try {
-                const result = await fetchLuau(prompt);
-                codeDisplay.textContent = result;
-
-                // Send to the Plugin
-                window.parent.postMessage({
-                    type: 'LUAU_BRIDGE_PAYLOAD',
-                    code: result,
-                    auth: pairingCode
-                }, '*');
-
-                addLog('Script Bridge Payload delivered.', 'success');
-            } catch (err) {
-                addLog(`Bridge Error: ${err.message}`, 'error');
-            } finally {
-                generateBtn.disabled = false;
-                loadingOverlay.classList.replace('flex', 'hidden');
-            }
+            ctx.fillStyle = pet.color;
+            ctx.beginPath();
+            ctx.arc(px + 25, py + 25, 12, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = "white";
+            ctx.stroke();
         });
+    }
 
-        function applyIdea(text) {
-            promptInput.value = text;
-            if (isConnected) generateBtn.click();
-        }
+    init();
+</script>
 
-        function clearLogs() { consoleLogs.innerHTML = ''; }
-
-        addLog('Pairing Engine initialized.', 'info');
-    </script>
 </body>
 </html>
