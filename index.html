@@ -2,214 +2,216 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ultimate Tap Simulator</title>
+    <title>Web Simulator 2025</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #111; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        canvas { display: block; transition: background 0.5s ease; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Arial Black', sans-serif; user-select: none; }
+        canvas { display: block; }
         
-        /* UI Overlays */
-        #ui-layer {
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none;
-            color: white;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        /* GUI Style like Roblox */
+        #gui {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; color: white;
         }
-
-        .stats-panel { position: absolute; top: 20px; left: 20px; pointer-events: auto; }
-        .index-panel { 
-            position: absolute; top: 20px; right: 20px; 
-            background: rgba(0,0,0,0.6); padding: 15px; 
-            border-radius: 10px; border: 2px solid gold;
-            pointer-events: auto; max-height: 300px; overflow-y: auto;
+        .hud {
+            position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 20px; pointer-events: auto;
         }
-
-        .controls-hint { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); text-align: center; }
-
-        button {
-            pointer-events: auto;
-            padding: 10px 20px;
-            font-size: 18px;
-            font-weight: bold;
-            cursor: pointer;
-            background: #ffcc00;
-            border: none;
-            border-radius: 5px;
-            margin: 5px;
-            transition: transform 0.1s;
+        .stat-box {
+            background: rgba(0, 0, 0, 0.7); border: 4px solid #fff;
+            padding: 10px 30px; border-radius: 15px; text-align: center;
+            box-shadow: 0 5px 0 #555;
         }
-        button:active { transform: scale(0.95); }
-        button:disabled { background: #555; cursor: not-allowed; }
-
-        .pet-item { color: #00ffcc; font-size: 14px; margin-bottom: 5px; border-bottom: 1px solid #444; }
+        .btn {
+            background: #4caf50; border: 4px solid #fff; color: white;
+            padding: 15px 25px; border-radius: 15px; font-size: 20px;
+            cursor: pointer; pointer-events: auto; box-shadow: 0 5px 0 #2e7d32;
+        }
+        .btn:active { transform: translateY(5px); box-shadow: none; }
+        .index-panel {
+            position: absolute; left: 20px; top: 20px; width: 200px;
+            background: rgba(0,0,0,0.8); border: 3px solid gold; border-radius: 10px; padding: 10px;
+        }
     </style>
 </head>
 <body>
 
-<div id="ui-layer">
-    <div class="stats-panel">
-        <h1 style="font-size: 40px; margin: 0;">Taps: <span id="tapCount">0</span></h1>
-        <h2 style="color: #00ffcc;">Rebirths: <span id="rebirthCount">0</span></h2>
-        <button onclick="doRebirth()">REBIRTH (Cost: <span id="rebirthCost">1000</span>)</button>
-        <button onclick="hatchEgg()" id="hatchBtn">HATCH EGG (500 Taps)</button>
-    </div>
-
+<div id="gui">
     <div class="index-panel">
-        <h3 style="margin-top: 0; color: gold;">🐾 PET INDEX</h3>
-        <div id="petList">No pets yet...</div>
+        <h3 style="color: gold; margin: 0;">PET INDEX</h3>
+        <div id="petList" style="font-size: 12px; margin-top: 10px;">Empty...</div>
     </div>
 
-    <div class="controls-hint">
-        <p><b>WASD</b> to Walk | <b>SPACE</b> to Tap | <b>R</b> to Rebirth</p>
-        <p id="biomeText" style="font-weight: bold; font-size: 20px; color: #fff;"></p>
+    <div class="hud">
+        <div class="stat-box">
+            <div style="color: #00e5ff;">TAPS</div>
+            <div id="tapCount" style="font-size: 24px;">0</div>
+        </div>
+        <button class="btn" onclick="tap()">CLICK! (Space)</button>
+        <div class="stat-box">
+            <div style="color: #ff3d00;">REBIRTHS</div>
+            <div id="rebirthCount" style="font-size: 24px;">0</div>
+        </div>
+        <button class="btn" style="background: #ff9100;" onclick="hatch()">HATCH (500)</button>
     </div>
 </div>
 
 <canvas id="gameCanvas"></canvas>
 
 <script>
-    const canvas = document.getElementById("gameCanvas");
-    const ctx = canvas.getContext("2d");
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+
+// --- Game Constants ---
+const PETS = [
+    { name: "🧊 Ice Cube", chance: 0.7, mult: 2, color: "#a5f3fc" },
+    { name: "🔥 Fire Spirit", chance: 0.2, mult: 10, color: "#fb7185" },
+    { name: "👑 Golden King", chance: 0.1, mult: 100, color: "#fbbf24" }
+];
+
+// --- Save/Load System ---
+let data = JSON.parse(localStorage.getItem("roblox_sim_save")) || {
+    taps: 0, rebirths: 0, pets: []
+};
+
+function save() {
+    localStorage.setItem("roblox_sim_save", JSON.stringify(data));
+}
+
+// --- Player State ---
+let player = {
+    x: 500, y: 500, size: 50, color: "#3b82f6",
+    velX: 0, velY: 0, speed: 0.8, friction: 0.9
+};
+
+let keys = {};
+let particles = [];
+let floatingTexts = [];
+
+// --- Game Objects (Physical Leaderboards) ---
+const leaderboards = [
+    { x: 300, y: 150, title: "GLOBAL TOP TAPS", color: "#00e5ff" },
+    { x: 700, y: 150, title: "GLOBAL REBIRTHS", color: "#ff3d00" }
+];
+
+window.addEventListener("keydown", (e) => { 
+    keys[e.key.toLowerCase()] = true; 
+    if(e.code === "Space") tap();
+});
+window.addEventListener("keyup", (e) => keys[e.key.toLowerCase()] = false);
+
+function tap() {
+    let bonus = data.pets.reduce((s, p) => s + p.mult, 1);
+    let gain = (1 + data.rebirths) * bonus;
+    data.taps += gain;
     
-    // --- Configuration & Data ---
-    const PET_TYPES = [
-        { name: "Common Dog", chance: 0.60, mult: 1.2, color: "#8B4513" },
-        { name: "Rare Cat", chance: 0.30, mult: 2.5, color: "#D2B48C" },
-        { name: "Epic Dragon", chance: 0.08, mult: 10, color: "#FF4500" },
-        { name: "LEGENDARY GLITCH", chance: 0.02, mult: 50, color: "#FF00FF" }
-    ];
-
-    const BIOMES = [
-        { name: "Grassy Plains", color: "#45a247", req: 0 },
-        { name: "Frozen Tundra", color: "#83a4d4", req: 5 },
-        { name: "Void Zone", color: "#16222a", req: 15 }
-    ];
-
-    let player = {
-        x: window.innerWidth / 2,
-        y: window.innerHeight / 2,
-        size: 50,
-        speed: 5,
-        taps: 0,
-        rebirths: 0,
-        pets: [],
-        color: "#fff"
-    };
-
-    let keys = {};
-
-    // --- Core Logic ---
-    function init() {
-        resize();
-        window.addEventListener("keydown", (e) => { 
-            keys[e.key.toLowerCase()] = true; 
-            if(e.code === "Space") tap();
-            if(e.key === "r") doRebirth();
+    // Visual Polish: Floating Text
+    floatingTexts.push({ x: player.x, y: player.y, text: "+" + gain, life: 1.0 });
+    
+    // Particles
+    for(let i=0; i<5; i++) {
+        particles.push({ 
+            x: player.x + 25, y: player.y + 25, 
+            vx: (Math.random()-0.5)*10, vy: (Math.random()-0.5)*10, 
+            life: 1.0, color: "yellow" 
         });
-        window.addEventListener("keyup", (e) => keys[e.key.toLowerCase()] = false);
-        window.addEventListener("resize", resize);
-        update();
     }
+    updateUI();
+    save();
+}
 
-    function resize() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-    }
-
-    function tap() {
-        let petBonus = player.pets.reduce((acc, pet) => acc + pet.mult, 1);
-        player.taps += (1 + player.rebirths) * petBonus;
+function hatch() {
+    if(data.taps >= 500) {
+        data.taps -= 500;
+        let rand = Math.random();
+        let pet = PETS[rand < 0.7 ? 0 : rand < 0.9 ? 1 : 2];
+        data.pets.push(pet);
         updateUI();
+        save();
     }
+}
 
-    function doRebirth() {
-        let cost = (player.rebirths + 1) * 1000;
-        if (player.taps >= cost) {
-            player.taps = 0;
-            player.rebirths++;
-            updateUI();
-        }
-    }
+function updateUI() {
+    document.getElementById("tapCount").innerText = Math.floor(data.taps);
+    document.getElementById("rebirthCount").innerText = data.rebirths;
+    document.getElementById("petList").innerHTML = data.pets.map(p => `<div>${p.name}</div>`).join("");
+}
 
-    function hatchEgg() {
-        if (player.taps >= 500) {
-            player.taps -= 500;
-            let rand = Math.random();
-            let cumulativeChance = 0;
-            let selectedPet = PET_TYPES[0];
+function render() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
 
-            for (let pet of PET_TYPES) {
-                cumulativeChance += pet.chance;
-                if (rand <= cumulativeChance) {
-                    selectedPet = pet;
-                    break;
-                }
-            }
-            
-            player.pets.push({...selectedPet});
-            updatePetIndex();
-            updateUI();
-        }
-    }
+    // Movement Physics
+    if (keys['w']) player.velY -= player.speed;
+    if (keys['s']) player.velY += player.speed;
+    if (keys['a']) player.velX -= player.speed;
+    if (keys['d']) player.velX += player.speed;
+    
+    player.x += player.velX;
+    player.y += player.velY;
+    player.velX *= player.friction;
+    player.velY *= player.friction;
 
-    function updateUI() {
-        document.getElementById("tapCount").innerText = Math.floor(player.taps);
-        document.getElementById("rebirthCount").innerText = player.rebirths;
-        document.getElementById("rebirthCost").innerText = (player.rebirths + 1) * 1000;
-        document.getElementById("hatchBtn").disabled = player.taps < 500;
-    }
+    // Biome Color
+    ctx.fillStyle = data.rebirths > 2 ? "#1e1b4b" : "#166534";
+    ctx.fillRect(0,0, canvas.width, canvas.height);
 
-    function updatePetIndex() {
-        const list = document.getElementById("petList");
-        list.innerHTML = player.pets.map(p => `<div class="pet-item">${p.name} (x${p.mult})</div>`).join("");
-    }
-
-    // --- Game Loop ---
-    function update() {
-        // Movement
-        if (keys['w']) player.y -= player.speed;
-        if (keys['s']) player.y += player.speed;
-        if (keys['a']) player.x -= player.speed;
-        if (keys['d']) player.x += player.speed;
-
-        // Determine Biome
-        let currentBiome = BIOMES[0];
-        BIOMES.forEach(b => { if (player.rebirths >= b.req) currentBiome = b; });
-        canvas.style.backgroundColor = currentBiome.color;
-        document.getElementById("biomeText").innerText = "Biome: " + currentBiome.name;
-
-        draw();
-        requestAnimationFrame(update);
-    }
-
-    function draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        // Draw Player "Rig" (Square for now, custom skin-able)
-        ctx.fillStyle = player.color;
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = "rgba(0,0,0,0.3)";
-        ctx.fillRect(player.x, player.y, player.size, player.size);
+    // Draw Physical Leaderboards (The "Rig" in-game)
+    leaderboards.forEach(lb => {
+        ctx.fillStyle = "rgba(0,0,0,0.5)";
+        ctx.fillRect(lb.x, lb.y, 200, 250);
+        ctx.strokeStyle = lb.color;
+        ctx.lineWidth = 5;
+        ctx.strokeRect(lb.x, lb.y, 200, 250);
         
-        // Draw Pets following player
-        player.pets.forEach((pet, i) => {
-            let time = Date.now() / 500;
-            let spacing = (i + 1) * 40;
-            let px = player.x + Math.cos(time + i) * spacing;
-            let py = player.y + Math.sin(time + i) * spacing;
-            
-            ctx.fillStyle = pet.color;
-            ctx.beginPath();
-            ctx.arc(px + 25, py + 25, 12, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.strokeStyle = "white";
-            ctx.stroke();
-        });
-    }
+        ctx.fillStyle = "white";
+        ctx.font = "bold 14px Arial";
+        ctx.fillText(lb.title, lb.x + 20, lb.y - 10);
+        
+        // Mock data
+        ctx.fillStyle = "#ccc";
+        ctx.fillText("1. You: " + (lb.title.includes("TAPS") ? Math.floor(data.taps) : data.rebirths), lb.x + 10, lb.y + 40);
+        ctx.fillText("2. Builderman: 0", lb.x + 10, lb.y + 70);
+    });
 
-    init();
+    // Draw Pets (Orbits)
+    data.pets.forEach((p, i) => {
+        let ang = (Date.now() / 1000) + (i * 1.5);
+        let px = player.x + 25 + Math.cos(ang) * 60;
+        let py = player.y + 25 + Math.sin(ang) * 60;
+        ctx.fillStyle = p.color;
+        ctx.fillRect(px - 10, py - 10, 20, 20);
+    });
+
+    // Draw Player (Pseudo-3D Rig)
+    ctx.fillStyle = "#1e3a8a"; // Shadow
+    ctx.fillRect(player.x+5, player.y+5, player.size, player.size);
+    ctx.fillStyle = player.color; // Main body
+    ctx.fillRect(player.x, player.y, player.size, player.size);
+    ctx.fillStyle = "white"; // Eyes
+    ctx.fillRect(player.x + 10, player.y + 10, 10, 10);
+    ctx.fillRect(player.x + 30, player.y + 10, 10, 10);
+
+    // Particles & Text
+    particles = particles.filter(p => p.life > 0);
+    particles.forEach(p => {
+        p.x += p.vx; p.y += p.vy; p.life -= 0.02;
+        ctx.fillStyle = `rgba(255, 255, 0, ${p.life})`;
+        ctx.fillRect(p.x, p.y, 5, 5);
+    });
+
+    floatingTexts = floatingTexts.filter(t => t.life > 0);
+    floatingTexts.forEach(t => {
+        t.y -= 1; t.life -= 0.02;
+        ctx.fillStyle = `rgba(255, 255, 255, ${t.life})`;
+        ctx.font = "bold 20px Arial";
+        ctx.fillText(t.text, t.x, t.y);
+    });
+
+    requestAnimationFrame(render);
+}
+
+updateUI();
+render();
 </script>
-
 </body>
 </html>
