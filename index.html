@@ -27,10 +27,22 @@
             transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
             cursor: pointer;
         }
-        .idea-card:hover {
+        .idea-card:hover:not(.disabled) {
             background: rgba(99, 102, 241, 0.1);
             border-color: rgba(99, 102, 241, 0.3);
             transform: translateY(-2px);
+        }
+        .idea-card.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .status-ping {
+            animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+        }
+
+        @keyframes ping {
+            75%, 100% { transform: scale(2); opacity: 0; }
         }
 
         ::-webkit-scrollbar { width: 6px; }
@@ -47,9 +59,12 @@
             </div>
             <h1 class="text-lg font-extrabold tracking-tight text-white uppercase italic">Bridge Hub</h1>
         </div>
-        <div id="status-badge" class="flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10">
-            <div class="w-2 h-2 rounded-full bg-emerald-500"></div>
-            <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Bridge Connected</span>
+        <div id="status-container" class="flex items-center gap-2 px-3 py-1 rounded-full bg-rose-500/10 border border-rose-500/20">
+            <div id="status-dot-container" class="relative flex h-2 w-2">
+                <span id="status-ping" class="hidden absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 status-ping"></span>
+                <span id="status-dot" class="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+            </div>
+            <span id="status-text" class="text-[10px] font-bold text-rose-400 uppercase tracking-widest">Waiting for Plugin...</span>
         </div>
     </nav>
 
@@ -57,12 +72,14 @@
         
         <!-- Left Column: Ideas & Presets -->
         <div class="lg:col-span-3 space-y-4">
-            <h2 class="text-[11px] font-black text-slate-500 uppercase tracking-[0.2em] mb-4">Map Ideas</h2>
+            <div class="flex items-center justify-between mb-2">
+                <h2 class="text-[11px] font-black text-slate-500 uppercase tracking-[0.2em]">Map Ideas</h2>
+                <span class="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-slate-400">SYNCED</span>
+            </div>
             
             <div class="space-y-3" id="ideas-container">
-                <!-- Group: Environmental -->
                 <div class="text-[9px] font-bold text-indigo-400 uppercase tracking-widest mt-6">Environmental</div>
-                <div onclick="applyIdea('Create a realistic day/night cycle script with smooth lighting transitions and shadows.')" class="idea-card glass p-3 rounded-xl border border-white/5">
+                <div onclick="applyIdea('Create a realistic day/night cycle script with smooth lighting transitions.')" class="idea-card glass p-3 rounded-xl border border-white/5">
                     <div class="text-xs font-semibold text-white">Day/Night Cycle</div>
                     <div class="text-[10px] text-slate-500 mt-1">Dynamic atmospheric lighting</div>
                 </div>
@@ -71,22 +88,14 @@
                     <div class="text-[10px] text-slate-500 mt-1">Particles for map ambiance</div>
                 </div>
 
-                <!-- Group: Mechanics -->
                 <div class="text-[9px] font-bold text-indigo-400 uppercase tracking-widest mt-6">Gameplay</div>
-                <div onclick="applyIdea('Create a round-based leaderboard system that tracks wins and resets every 5 minutes.')" class="idea-card glass p-3 rounded-xl border border-white/5">
+                <div onclick="applyIdea('Create a round-based leaderboard system that tracks wins and resets.')" class="idea-card glass p-3 rounded-xl border border-white/5">
                     <div class="text-xs font-semibold text-white">Leaderboard</div>
-                    <div class="text-[10px] text-slate-500 mt-1">DataStore integration basics</div>
+                    <div class="text-[10px] text-slate-500 mt-1">DataStore integration</div>
                 </div>
-                <div onclick="applyIdea('A proximity prompt system that opens a heavy vault door with sound effects.')" class="idea-card glass p-3 rounded-xl border border-white/5">
+                <div onclick="applyIdea('A proximity prompt system that opens a heavy vault door with sounds.')" class="idea-card glass p-3 rounded-xl border border-white/5">
                     <div class="text-xs font-semibold text-white">Animated Vault</div>
-                    <div class="text-[10px] text-slate-500 mt-1">TweenService & Proximity</div>
-                </div>
-
-                <!-- Group: UI -->
-                <div class="text-[9px] font-bold text-indigo-400 uppercase tracking-widest mt-6">Interface</div>
-                <div onclick="applyIdea('Create a modern custom Health bar UI that shakes when the player takes damage.')" class="idea-card glass p-3 rounded-xl border border-white/5">
-                    <div class="text-xs font-semibold text-white">Damage Feedback</div>
-                    <div class="text-[10px] text-slate-500 mt-1">Custom GUI & Animations</div>
+                    <div class="text-[10px] text-slate-500 mt-1">TweenService & Interaction</div>
                 </div>
             </div>
         </div>
@@ -95,22 +104,23 @@
         <div class="lg:col-span-5 space-y-4">
             <div class="glass p-5 rounded-2xl space-y-4 border border-white/10 shadow-xl">
                 <div class="flex items-center justify-between">
-                    <label class="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em]">Bridge Input</label>
-                    <span class="text-[9px] text-slate-600 font-mono">v2.1.0-stable</span>
+                    <label class="text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em]">Command Stream</label>
+                    <span id="bridge-id" class="text-[9px] text-slate-600 font-mono">ID: UNKNOWN</span>
                 </div>
                 <textarea id="prompt-input" 
-                    placeholder="Describe a script or click an idea on the left..."
-                    class="w-full h-48 bg-black/40 border border-white/10 rounded-xl p-4 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all resize-none placeholder:text-slate-700 text-indigo-50"></textarea>
+                    placeholder="Plugin must be active to send scripts..."
+                    disabled
+                    class="w-full h-48 bg-black/40 border border-white/10 rounded-xl p-4 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all resize-none placeholder:text-slate-700 text-indigo-50 opacity-50"></textarea>
                 
-                <button id="generate-btn" class="w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-lg shadow-indigo-900/40">
+                <button id="generate-btn" disabled class="w-full py-4 bg-slate-800 text-slate-500 rounded-xl font-bold flex items-center justify-center gap-2 transition-all cursor-not-allowed">
                     <i data-lucide="zap" class="w-4 h-4 fill-current"></i>
-                    <span>GENERATE & SEND TO PLUG-IN</span>
+                    <span>BRIDGE DISCONNECTED</span>
                 </button>
             </div>
 
             <div class="glass rounded-2xl overflow-hidden flex flex-col h-[235px] border border-white/5">
                 <div class="px-5 py-3 border-b border-white/5 bg-black/20 flex items-center justify-between">
-                    <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Bridge Console</span>
+                    <span class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Data Pipe Logs</span>
                     <button onclick="clearLogs()" class="text-[10px] text-slate-600 hover:text-indigo-400 font-bold uppercase transition-colors">Clear</button>
                 </div>
                 <div id="console-logs" class="flex-1 p-4 overflow-y-auto space-y-2 code-font text-[11px] text-slate-400"></div>
@@ -123,11 +133,11 @@
                 <div class="flex items-center justify-between px-6 py-4 border-b border-white/5 bg-white/[0.02]">
                     <div class="flex items-center gap-3">
                         <i data-lucide="file-code" class="w-4 h-4 text-indigo-400"></i>
-                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Bridge_Payload.lua</span>
+                        <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Preview.lua</span>
                     </div>
-                    <button onclick="copyToClipboard()" class="p-2 hover:bg-white/5 rounded-lg text-slate-500 hover:text-white transition-colors">
-                        <i data-lucide="copy" class="w-4 h-4"></i>
-                    </button>
+                    <div class="flex gap-2">
+                        <div id="sync-status" class="w-2 h-2 rounded-full bg-slate-700"></div>
+                    </div>
                 </div>
 
                 <div id="loading-overlay" class="hidden absolute inset-0 z-10 bg-black/80 backdrop-blur-md items-center justify-center flex-col gap-4">
@@ -135,16 +145,16 @@
                         <div class="w-16 h-16 border-2 border-indigo-500/20 rounded-full"></div>
                         <div class="w-16 h-16 border-t-2 border-indigo-500 rounded-full animate-spin absolute top-0"></div>
                     </div>
-                    <span class="text-[10px] font-black text-indigo-400 tracking-[0.4em] uppercase animate-pulse">Compiling Luau</span>
+                    <span class="text-[10px] font-black text-indigo-400 tracking-[0.4em] uppercase animate-pulse">Encoding Payload</span>
                 </div>
 
-                <pre id="code-display" class="flex-1 p-6 code-font text-[13px] leading-relaxed overflow-auto text-indigo-100/80 whitespace-pre-wrap">-- Bridge Ready. 
--- Waiting for prompt or idea selection...</pre>
+                <pre id="code-display" class="flex-1 p-6 code-font text-[13px] leading-relaxed overflow-auto text-indigo-100/80 whitespace-pre-wrap">-- Initialize connection in Roblox Studio 
+-- to unlock script generation.</pre>
                 
                 <div class="p-4 bg-indigo-600/5 border-t border-white/5">
                     <div class="flex items-center justify-between text-[10px] text-indigo-300/50 font-bold uppercase tracking-widest">
-                        <span>Lines: <span id="line-count">0</span></span>
-                        <span>Mode: Server/Client</span>
+                        <span>Payload Size: <span id="byte-size">0</span> bytes</span>
+                        <span id="last-sync">Last Sync: Never</span>
                     </div>
                 </div>
             </div>
@@ -159,8 +169,15 @@
         const codeDisplay = document.getElementById('code-display');
         const consoleLogs = document.getElementById('console-logs');
         const loadingOverlay = document.getElementById('loading-overlay');
-        const lineCount = document.getElementById('line-count');
-        const apiKey = ""; // Managed by environment
+        const statusText = document.getElementById('status-text');
+        const statusDot = document.getElementById('status-dot');
+        const statusPing = document.getElementById('status-ping');
+        const statusContainer = document.getElementById('status-container');
+        const bridgeIdDisplay = document.getElementById('bridge-id');
+        
+        let isConnected = false;
+        let lastHeartbeat = 0;
+        const apiKey = ""; 
 
         function addLog(msg, type = 'info') {
             const time = new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -168,7 +185,8 @@
                 info: 'text-slate-500',
                 success: 'text-emerald-400',
                 error: 'text-rose-400',
-                warn: 'text-amber-400'
+                warn: 'text-amber-400',
+                bridge: 'text-indigo-400'
             };
             const logEntry = document.createElement('div');
             logEntry.className = 'flex gap-3 leading-tight animate-in slide-in-from-left-2 duration-300';
@@ -176,114 +194,124 @@
             consoleLogs.prepend(logEntry);
         }
 
-        function clearLogs() {
-            consoleLogs.innerHTML = '';
-            addLog('Bridge console reset', 'info');
-        }
+        // REAL BRIDGE HANDSHAKE
+        // Your Roblox Plugin should send this message: 
+        // window.postMessage({ type: 'ROBLOX_BRIDGE_CONNECT', id: 'Studio_User_123' }, '*')
+        window.addEventListener('message', (event) => {
+            const data = event.data;
+            
+            if (data.type === 'ROBLOX_BRIDGE_CONNECT') {
+                setBridgeState(true, data.id || 'Studio_Client');
+                addLog(`Handshake received from: ${data.id}`, 'bridge');
+            }
 
-        function applyIdea(text) {
-            promptInput.value = text;
-            addLog(`Idea selected: ${text.substring(0, 30)}...`, 'info');
-            generateBtn.click();
+            if (data.type === 'ROBLOX_BRIDGE_HEARTBEAT') {
+                lastHeartbeat = Date.now();
+                if (!isConnected) setBridgeState(true, data.id);
+            }
+        });
+
+        function setBridgeState(connected, id = 'UNKNOWN') {
+            isConnected = connected;
+            if (connected) {
+                statusText.innerText = "Bridge Active";
+                statusText.classList.replace('text-rose-400', 'text-emerald-400');
+                statusDot.classList.replace('bg-rose-500', 'bg-emerald-500');
+                statusPing.classList.remove('hidden');
+                statusContainer.classList.replace('bg-rose-500/10', 'bg-emerald-500/10');
+                statusContainer.classList.replace('border-rose-500/20', 'border-emerald-500/20');
+                
+                promptInput.disabled = false;
+                promptInput.classList.remove('opacity-50');
+                promptInput.placeholder = "Describe your script...";
+                
+                generateBtn.disabled = false;
+                generateBtn.className = "w-full py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-lg shadow-indigo-900/40";
+                generateBtn.innerHTML = `<i data-lucide="zap" class="w-4 h-4 fill-current"></i><span>SEND TO STUDIO</span>`;
+                bridgeIdDisplay.innerText = `ID: ${id}`;
+                
+                lucide.createIcons();
+            } else {
+                statusText.innerText = "Waiting for Plugin...";
+                // ... reset UI to disconnected state logic
+            }
         }
 
         async function fetchLuau(prompt, attempt = 0) {
-            const delays = [1000, 2000, 4000, 8000, 16000];
-            
             try {
                 const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        contents: [{ 
-                            parts: [{ text: `Task: Generate a Roblox Luau script for: ${prompt}. 
-                            Guidelines:
-                            1. Output RAW Luau code only.
-                            2. Do NOT use markdown code blocks (no \`\`\`).
-                            3. Use --!strict for all scripts.
-                            4. Include helpful comments inside the code.
-                            5. If the request is a UI, generate the script to create the UI programmatically.` }] 
-                        }],
-                        systemInstruction: { 
-                            parts: [{ text: "You are an expert Roblox Luau Architect. Output clean, bug-free, and performance-optimized code." }] 
-                        }
+                        contents: [{ parts: [{ text: `Roblox Luau: ${prompt}. Pure code, no markdown.` }] }],
+                        systemInstruction: { parts: [{ text: "You are a Luau expert. Return only code." }] }
                     })
                 });
 
-                if (!response.ok) throw new Error(`Engine Error: ${response.status}`);
-                
                 const data = await response.json();
                 let code = data.candidates?.[0]?.content?.parts?.[0]?.text;
-                
-                if (!code) throw new Error("Synthesis produced null output.");
-                
-                // Clean any stray markdown if the model ignored the instruction
-                code = code.replace(/```lua/g, '').replace(/```luau/g, '').replace(/```/g, '');
-                
-                return code.trim();
-
+                return code.replace(/```lua/g, '').replace(/```/g, '').trim();
             } catch (err) {
-                if (attempt < 4) {
-                    addLog(`Link unstable, retrying handshake... (${attempt + 1}/5)`, 'warn');
-                    await new Promise(r => setTimeout(r, delays[attempt]));
-                    return fetchLuau(prompt, attempt + 1);
-                }
+                if (attempt < 3) return fetchLuau(prompt, attempt + 1);
                 throw err;
             }
         }
 
         generateBtn.addEventListener('click', async () => {
             const prompt = promptInput.value.trim();
-            if (!prompt) return addLog('Awaiting prompt input...', 'warn');
+            if (!prompt || !isConnected) return;
 
             generateBtn.disabled = true;
-            loadingOverlay.classList.remove('hidden');
-            loadingOverlay.classList.add('flex');
-            addLog('Handshaking with Luau Synthesis Engine...', 'info');
+            loadingOverlay.classList.replace('hidden', 'flex');
+            addLog('Synthesizing Luau instructions...', 'info');
 
             try {
                 const result = await fetchLuau(prompt);
                 codeDisplay.textContent = result;
-                
-                const lines = result.split('\n').length;
-                lineCount.textContent = lines;
+                document.getElementById('byte-size').textContent = new Blob([result]).size;
+                document.getElementById('last-sync').textContent = `Last Sync: ${new Date().toLocaleTimeString()}`;
 
-                addLog('Script synthesized successfully', 'success');
-                addLog('Sending payload to Plugin Bridge...', 'info');
-                
-                // The Bridge Connection Logic
-                // We dispatch an event that the Studio Plugin can listen to via the browser's external interface
-                window.dispatchEvent(new CustomEvent('LuauBridge_SendCode', { 
-                    detail: { 
-                        code: result,
-                        source: 'Bridge_Hub_v2'
-                    } 
-                }));
-                
-                addLog('Bridge Transmission: OK', 'success');
+                // EMIT TO PLUGIN
+                // The plugin should listen for 'LUAU_PAYLOAD' via window.addEventListener('message')
+                window.parent.postMessage({
+                    type: 'LUAU_PAYLOAD',
+                    code: result,
+                    timestamp: Date.now()
+                }, '*');
+
+                addLog('Payload streamed to Studio Bridge', 'success');
 
             } catch (err) {
-                addLog(`Critical Failure: ${err.message}`, 'error');
-                codeDisplay.textContent = "-- SYNTHESIS ERROR\n-- Please try a different prompt or check connection.";
+                addLog(`Bridge Error: ${err.message}`, 'error');
             } finally {
                 generateBtn.disabled = false;
-                loadingOverlay.classList.add('hidden');
-                loadingOverlay.classList.remove('flex');
+                loadingOverlay.classList.replace('flex', 'hidden');
             }
         });
 
-        function copyToClipboard() {
-            const text = codeDisplay.textContent;
-            const temp = document.createElement('textarea');
-            temp.value = text;
-            document.body.appendChild(temp);
-            temp.select();
-            document.execCommand('copy');
-            document.body.removeChild(temp);
-            addLog('Payload copied to clipboard', 'success');
+        function applyIdea(text) {
+            if (!isConnected) {
+                addLog('Bridge inactive. Open Roblox Plugin first.', 'warn');
+                return;
+            }
+            promptInput.value = text;
+            generateBtn.click();
         }
 
-        addLog('Bridge kernel v2.1.0 online', 'info');
+        function clearLogs() {
+            consoleLogs.innerHTML = '';
+            addLog('Data pipe cleared', 'info');
+        }
+
+        // Heartbeat Monitor
+        setInterval(() => {
+            if (isConnected && Date.now() - lastHeartbeat > 5000) {
+                // Connection lost
+                // setBridgeState(false);
+            }
+        }, 2000);
+
+        addLog('Hub initialized. Awaiting Plugin Handshake...', 'info');
     </script>
 </body>
 </html>
