@@ -1,156 +1,361 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dream Nexus | Neural AI Bridge</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&display=swap');
-        @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&display=swap');
-        
-        body { font-family: 'Space Grotesk', sans-serif; background-color: #050508; color: #e2e8f0; }
-        .glass { background: rgba(15, 15, 25, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
-        .neon-border { border: 1px solid rgba(99, 102, 241, 0.4); box-shadow: 0 0 20px rgba(99, 102, 241, 0.1); }
-        .code-font { font-family: 'Fira Code', monospace; }
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #4f46e5; border-radius: 10px; }
-    </style>
-</head>
-<body class="p-4 md:p-8 min-h-screen flex flex-col items-center">
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { initializeApp, getApps } from 'firebase/app';
+import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
+import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
+import { Terminal, Zap, Play, Layout, Cpu, Copy, Check, Info, AlertTriangle, RefreshCw, X } from 'lucide-react';
 
-    <div class="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_50%_50%,rgba(17,24,39,1),rgba(5,5,8,1))]"></div>
+// --- Global Constants & Config Safety ---
+const getFirebaseConfig = () => {
+  try {
+    if (typeof __firebase_config === 'undefined') return null;
+    return JSON.parse(__firebase_config);
+  } catch (e) {
+    console.error("Firebase config parse error", e);
+    return null;
+  }
+};
 
-    <div class="w-full max-w-6xl space-y-6">
-        <!-- Header -->
-        <header class="flex flex-col md:flex-row justify-between items-center bg-slate-900/40 p-6 rounded-3xl border border-white/5">
-            <div class="flex items-center gap-4">
-                <div class="w-12 h-12 bg-indigo-600 rounded-xl flex items-center justify-center">
-                    <i data-lucide="brain-circuit" class="text-white"></i>
-                </div>
-                <div>
-                    <h1 class="text-2xl font-bold tracking-tighter uppercase">Dream <span class="text-indigo-500">Nexus</span></h1>
-                    <p class="text-[10px] text-indigo-400 font-bold tracking-[0.2em] uppercase">AI Interface Active</p>
-                </div>
-            </div>
-            <div class="mt-4 md:mt-0 px-6 py-2 bg-slate-950 rounded-2xl border border-white/10 text-center">
-                <span class="text-[9px] text-slate-500 font-bold uppercase tracking-widest">Nexus Link Key</span>
-                <div id="sessionKeyDisplay" class="text-xl font-black text-white tracking-widest">CONNECTING...</div>
-            </div>
-        </header>
+const firebaseConfig = getFirebaseConfig();
+const app = (firebaseConfig && getApps().length === 0) ? initializeApp(firebaseConfig) : (getApps()[0] || null);
+const auth = app ? getAuth(app) : null;
+const db = app ? getFirestore(app) : null;
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'nexus-pro-v4';
 
-        <main class="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            <!-- AI Input -->
-            <div class="lg:col-span-5 space-y-6">
-                <div class="glass neon-border rounded-[2.5rem] p-8">
-                    <label class="text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2 mb-4">
-                        <i data-lucide="sparkles" class="w-4 h-4 text-indigo-400"></i> Neural Prompt
-                    </label>
-                    <textarea 
-                        id="aiPrompt"
-                        placeholder="What should I build in Roblox today?" 
-                        class="w-full h-48 bg-transparent text-lg text-white placeholder-slate-700 focus:outline-none resize-none leading-relaxed"
-                    ></textarea>
-                    <button 
-                        onclick="generateDream()"
-                        id="manifestBtn"
-                        class="w-full mt-4 py-4 bg-indigo-600 hover:bg-indigo-500 rounded-2xl text-white font-bold flex items-center justify-center gap-3 transition-all active:scale-95"
-                    >
-                        <span>Manifest Script</span>
-                        <i data-lucide="zap" class="w-5 h-5 fill-current"></i>
-                    </button>
-                </div>
+// --- Error Boundary ---
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) { return { hasError: true, error }; }
+  componentDidCatch(error, errorInfo) {
+    console.error("Nexus Component Crash:", error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-[#050505] flex items-center justify-center p-10 font-sans">
+          <div className="bg-zinc-900 border border-red-500/20 p-8 rounded-[32px] max-w-md text-center shadow-2xl">
+            <AlertTriangle className="text-red-500 w-12 h-12 mx-auto mb-4" />
+            <h2 className="text-white font-black uppercase italic text-xl">Nexus Kernel Panic</h2>
+            <p className="text-zinc-500 text-sm mt-3 mb-6 leading-relaxed">
+              A script error occurred in the React core. Path segment mismatch detected.
+            </p>
+            <button 
+              onClick={() => window.location.reload()} 
+              className="w-full py-4 bg-white text-black rounded-2xl font-bold uppercase text-xs tracking-widest hover:bg-blue-600 hover:text-white transition-all"
+            >
+              Cold Reboot
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
-                <div class="glass rounded-[2rem] p-6">
-                    <h3 class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                        <i data-lucide="activity" class="w-3 h-3 text-indigo-500"></i> Connection Logs
-                    </h3>
-                    <div id="activityFeed" class="space-y-2 h-32 overflow-y-auto pr-2 custom-scrollbar text-[11px]">
-                        <p class="text-slate-600 italic">Standby for input...</p>
-                    </div>
-                </div>
-            </div>
+function DreamNexus() {
+  const [user, setUser] = useState(null);
+  const [prompt, setPrompt] = useState("");
+  const [logs, setLogs] = useState([{ 
+    msg: "Nexus Core initialized. Awaiting bridge auth...", 
+    type: "sys", 
+    id: "init-log",
+    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) 
+  }]);
+  const [isThinking, setIsThinking] = useState(false);
+  const [isStudioOnline, setIsStudioOnline] = useState(false);
+  const [showSetup, setShowSetup] = useState(false);
+  const [copyFeedback, setCopyFeedback] = useState(false);
+  const [isReady, setIsReady] = useState(false);
 
-            <!-- AI Output (The "Inspect" Alternative) -->
-            <div class="lg:col-span-7">
-                <div class="bg-slate-950 rounded-[2.5rem] border border-white/10 flex flex-col h-full overflow-hidden min-h-[500px]">
-                    <div class="bg-slate-900 px-6 py-4 border-b border-white/5 flex justify-between items-center">
-                        <span class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Synthesized Luau Code</span>
-                        <button onclick="copyCode()" class="text-[10px] bg-white/5 hover:bg-white/10 px-3 py-1 rounded-lg transition-colors flex items-center gap-2">
-                            <i data-lucide="copy" class="w-3 h-3"></i> Copy
-                        </button>
-                    </div>
-                    <div class="p-6 flex-grow overflow-auto custom-scrollbar">
-                        <pre id="outputCode" class="code-font text-emerald-400 text-sm whitespace-pre-wrap">-- Waiting for prompt synthesis...</pre>
-                    </div>
-                </div>
-            </div>
-        </main>
-    </div>
+  const addLog = useCallback((msg, type = "sys") => {
+    setLogs(prev => [{ 
+      msg, 
+      type, 
+      id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) 
+    }, ...prev].slice(0, 30));
+  }, []);
 
-    <!-- Loading Screen -->
-    <div id="loader" class="fixed inset-0 bg-black/90 backdrop-blur-md hidden flex flex-col items-center justify-center z-50">
-        <div class="w-16 h-16 border-t-2 border-indigo-500 rounded-full animate-spin mb-4"></div>
-        <p class="text-indigo-400 font-bold text-xs tracking-widest uppercase">Thinking...</p>
-    </div>
-
-    <script>
-        lucide.createIcons();
-        const apiKey = ""; 
-        const sessionKey = Math.random().toString(36).substring(2, 8).toUpperCase();
-        document.getElementById('sessionKeyDisplay').innerText = sessionKey;
-
-        function addLog(msg, color = "text-slate-400") {
-            const feed = document.getElementById('activityFeed');
-            const item = document.createElement('p');
-            item.className = color;
-            item.innerText = `> ${msg}`;
-            feed.prepend(item);
+  // --- Auth Lifecycle (Rule 3) ---
+  useEffect(() => {
+    if (!auth) return;
+    
+    const performAuth = async () => {
+      try {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
         }
+      } catch (err) {
+        addLog(`Auth Bridge Failure: ${err.message}`, "err");
+      }
+    };
 
-        async function generateDream() {
-            const prompt = document.getElementById('aiPrompt').value;
-            if(!prompt) return;
+    performAuth();
+    const unsub = onAuthStateChanged(auth, (u) => {
+      setUser(u || null);
+      if (u) {
+        addLog(`Neural Link established: ${u.uid.slice(0, 8)}`, "sys");
+        setIsReady(true);
+      }
+    });
+    return () => unsub();
+  }, [addLog]);
 
-            const loader = document.getElementById('loader');
-            const output = document.getElementById('outputCode');
+  // --- Firestore Sync (Rule 1 & 2) ---
+  useEffect(() => {
+    if (!user || !db || !isReady) return;
+
+    // RULE 1: Ensure even segments. doc(db, 'artifacts', appId, 'public', 'data', collection, docId)
+    // segments: artifacts (1), appId (2), public (3), data (4), heartbeats (5), studio_heartbeat (6) -> Even
+    const heartbeatRef = doc(db, 'artifacts', appId, 'public', 'data', 'heartbeats', 'studio_heartbeat');
+    
+    const unsubHeartbeat = onSnapshot(heartbeatRef, {
+      next: (snap) => {
+        if (snap.exists()) {
+          const data = snap.data();
+          let lastSeen = 0;
+          if (data.lastSeen) {
+            lastSeen = typeof data.lastSeen.toMillis === 'function' ? data.lastSeen.toMillis() : Number(data.lastSeen);
+          }
+          const now = Date.now();
+          setIsStudioOnline(now - lastSeen < 25000); 
+        } else {
+          setIsStudioOnline(false);
+        }
+      },
+      error: (err) => {
+        console.warn("Heartbeat fetch skipped:", err.message);
+      }
+    });
+
+    return () => unsubHeartbeat();
+  }, [user, isReady, addLog]);
+
+  const handleManifest = async () => {
+    if (!prompt.trim() || isThinking || !user || !db) return;
+    
+    setIsThinking(true);
+    addLog(`Synthesizing manifest request...`, "ai");
+
+    try {
+      const apiKey = "";
+      const systemPrompt = "You are a professional Roblox developer. Output ONLY clean, efficient Luau code. No markdown, no commentary. Direct code only.";
+      
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          systemInstruction: { parts: [{ text: systemPrompt }] }
+        })
+      });
+
+      if (!response.ok) throw new Error("AI Stream Interrupted");
+      
+      const data = await response.json();
+      const code = data.candidates?.[0]?.content?.parts?.[0]?.text?.replace(/```lua|```/g, '').trim();
+
+      if (!code) throw new Error("Synthesis produced null result");
+
+      // Updated path to ensure 6 segments (even)
+      const bridgeRef = doc(db, 'artifacts', appId, 'public', 'data', 'bridge_data', 'current');
+      await setDoc(bridgeRef, {
+        code,
+        prompt,
+        timestamp: Date.now(),
+        author: user.uid
+      });
+
+      addLog("Bridge push complete. Roblox Studio processing...", "sys");
+      setPrompt("");
+    } catch (err) {
+      addLog(`Manifest Error: ${err.message}`, "err");
+    } finally {
+      setIsThinking(false);
+    }
+  };
+
+  const copyPluginCode = () => {
+    // Adjusted URL in Luau to match new even-segment paths
+    const codeSnippet = `-- Dream Nexus Bridge v4.1\nlocal HttpService = game:GetService("HttpService")\nlocal APP_ID = "${appId}"\nlocal BASE_URL = "https://firestore.googleapis.com/v1/projects/v-canvas-prod/databases/(default)/documents/artifacts/"..APP_ID.."/public/data/"\n\ntask.spawn(function()\n    while true do\n        pcall(function()\n            HttpService:RequestAsync({\n                Url = BASE_URL.."heartbeats/studio_heartbeat?updateMask.fieldPaths=lastSeen",\n                Method = "PATCH",\n                Body = HttpService:JSONEncode({ fields = { lastSeen = { integerValue = os.time() * 1000 } } })\n            })\n        end)\n        task.wait(10)\n    end\nend)\n\nlocal lastUpdate = 0\nwhile true do\n    local success, response = pcall(function() return HttpService:GetAsync(BASE_URL.."bridge_data/current") end)\n    if success and response then\n        local data = HttpService:JSONDecode(response)\n        if data.fields and data.fields.timestamp then\n            local ts = tonumber(data.fields.timestamp.doubleValue or data.fields.timestamp.integerValue)\n            if ts and ts > lastUpdate then\n                lastUpdate = ts\n                local luau = data.fields.code.stringValue\n                local func, err = loadstring(luau)\n                if func then task.spawn(func) else warn("Bridge Code Error: "..tostring(err)) end\n            end\n        end\n    end\n    task.wait(2)\nend`;
+
+    const el = document.createElement('textarea');
+    el.value = codeSnippet;
+    document.body.appendChild(el);
+    el.select();
+    try {
+      document.execCommand('copy');
+      setCopyFeedback(true);
+      setTimeout(() => setCopyFeedback(false), 2000);
+    } catch (e) {
+      addLog("Copy failure", "err");
+    }
+    document.body.removeChild(el);
+  };
+
+  if (!app) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center p-6 text-zinc-500 font-mono text-xs uppercase tracking-widest">
+        Initializing Environment...
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-[#050505] text-zinc-100 font-sans selection:bg-blue-500/30">
+      <nav className="border-b border-white/5 bg-[#050505]/80 backdrop-blur-xl sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shadow-[0_0_20px_rgba(37,99,235,0.4)]">
+              <Zap size={16} fill="white" stroke="none" />
+            </div>
+            <h1 className="font-black italic uppercase tracking-tighter text-lg">
+              Dream Nexus <span className="text-blue-500">PRO</span>
+            </h1>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <div className={`flex items-center gap-2 px-3 py-1 rounded-full border text-[10px] font-bold tracking-widest transition-all ${
+              isStudioOnline ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-red-500/10 border-red-500/20 text-red-400'
+            }`}>
+              <div className={`w-1.5 h-1.5 rounded-full ${isStudioOnline ? 'bg-emerald-400 animate-pulse' : 'bg-red-500'}`} />
+              {isStudioOnline ? 'BRIDGE ACTIVE' : 'STUDIO OFFLINE'}
+            </div>
+            <button 
+              onClick={() => setShowSetup(true)}
+              className="p-2 hover:bg-white/5 rounded-full text-zinc-400 hover:text-white transition-colors"
+            >
+              <Info size={20} />
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      <main className="max-w-5xl mx-auto p-6 grid grid-cols-12 gap-8 mt-4">
+        <div className="col-span-12 lg:col-span-7 space-y-6">
+          <div className="bg-zinc-900 border border-white/5 rounded-[40px] p-8 relative overflow-hidden group shadow-2xl">
+            <div className="absolute -top-10 -right-10 opacity-[0.03] pointer-events-none group-hover:scale-110 transition-transform duration-1000">
+              <Cpu size={240} />
+            </div>
             
-            loader.classList.remove('hidden');
-            addLog("Contacting AI engine...", "text-indigo-400");
-
-            try {
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{ parts: [{ text: `Write a Roblox Luau script for: ${prompt}. Return ONLY the code, no talk.` }] }]
-                    })
-                });
-
-                const data = await response.json();
-                const code = data.candidates?.[0]?.content?.parts?.[0]?.text || "Error generating code.";
+            <div className="relative">
+              <label className="text-[10px] font-black uppercase text-zinc-500 tracking-[0.2em] mb-4 block">Manifest Command</label>
+              <textarea 
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder="Ex: Create a neon forest with rotating glowing orbs..."
+                className="w-full bg-transparent border-0 text-xl font-medium placeholder:text-zinc-800 focus:ring-0 resize-none min-h-[220px] custom-scrollbar"
+              />
+              
+              <div className="flex items-center justify-between mt-6 pt-6 border-t border-white/5">
+                <div className="flex gap-2">
+                  {['Skyline', 'System', 'NPC'].map(tag => (
+                    <button 
+                      key={tag}
+                      onClick={() => setPrompt(`Generate a ${tag.toLowerCase()} that...`)}
+                      className="px-3 py-1 bg-zinc-800 hover:bg-zinc-700 rounded-full text-[10px] font-bold text-zinc-400 transition-colors"
+                    >
+                      +{tag}
+                    </button>
+                  ))}
+                </div>
                 
-                output.innerText = code.replace(/```lua|```/g, "");
-                addLog("Neural link successful.", "text-emerald-400");
-            } catch (err) {
-                addLog("Neural link failed.", "text-red-400");
-                output.innerText = "-- Error connecting to AI. Check your API key.";
-            } finally {
-                loader.classList.add('hidden');
-            }
-        }
+                <button 
+                  onClick={handleManifest}
+                  disabled={isThinking || !isStudioOnline}
+                  className={`px-8 py-3 rounded-2xl font-black uppercase text-xs tracking-widest flex items-center gap-3 transition-all ${
+                    !isStudioOnline 
+                      ? 'bg-zinc-800 text-zinc-600 cursor-not-allowed' 
+                      : 'bg-white text-black hover:bg-blue-600 hover:text-white shadow-xl hover:shadow-blue-500/20'
+                  }`}
+                >
+                  {isThinking ? <RefreshCw className="animate-spin" size={16} /> : <Play size={16} fill="currentColor" />}
+                  {isThinking ? 'Processing' : 'Transmit'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
 
-        function copyCode() {
-            const code = document.getElementById('outputCode').innerText;
-            const el = document.createElement('textarea');
-            el.value = code;
-            document.body.appendChild(el);
-            el.select();
-            document.execCommand('copy');
-            document.body.removeChild(el);
-            addLog("Code copied to clipboard!", "text-white");
-        }
-    </script>
-</body>
-</html>
+        <div className="col-span-12 lg:col-span-5 flex flex-col h-full min-h-[400px]">
+          <div className="bg-zinc-950 border border-white/5 rounded-[40px] p-6 flex-1 flex flex-col shadow-inner">
+            <div className="flex items-center gap-2 mb-6">
+              <Terminal size={14} className="text-blue-500" />
+              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Neural Log Stream</h3>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar flex flex-col">
+              {logs.map((log) => (
+                <div key={log.id} className={`text-[11px] leading-relaxed animate-in fade-in slide-in-from-left-2 duration-300 ${
+                  log.type === 'err' ? 'text-red-400' : log.type === 'ai' ? 'text-blue-400' : 'text-zinc-500'
+                }`}>
+                  <span className="font-mono opacity-30 mr-2">[{log.time}]</span>
+                  <span className={log.type === 'ai' ? 'font-bold' : ''}>{log.msg}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </main>
+
+      {showSetup && (
+        <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in duration-300">
+          <div className="bg-zinc-900 border border-white/10 rounded-[40px] max-w-xl w-full p-10 relative shadow-2xl overflow-hidden">
+            <button 
+              onClick={() => setShowSetup(false)}
+              className="absolute top-6 right-6 p-2 hover:bg-white/5 rounded-full text-zinc-500"
+            >
+              <X size={20} />
+            </button>
+            
+            <h2 className="text-3xl font-black italic uppercase mb-2">Bridge Config</h2>
+            <p className="text-zinc-500 text-sm mb-8 leading-relaxed">
+              Place this into a <span className="text-white font-bold">Script</span> in <span className="text-white font-bold">ServerScriptService</span>. 
+              Ensure <span className="text-blue-400">HTTP Requests</span> are enabled.
+            </p>
+            
+            <div className="bg-black/50 border border-white/5 rounded-3xl p-6 relative font-mono group">
+              <button 
+                onClick={copyPluginCode}
+                className="absolute top-4 right-4 bg-zinc-800 hover:bg-white/10 p-2 rounded-xl text-zinc-300 transition-all flex items-center gap-2 text-[10px] font-bold"
+              >
+                {copyFeedback ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                {copyFeedback ? 'COPIED' : 'COPY'}
+              </button>
+              <div className="text-[9px] text-zinc-600 h-40 overflow-y-auto custom-scrollbar leading-tight opacity-50 group-hover:opacity-100 transition-opacity">
+                {`-- Dream Nexus Bridge\nlocal HttpService = game:GetService("HttpService")\nlocal APP_ID = "${appId}"\nlocal URL = "https://firestore.googleapis.com/v1/projects/v-canvas-prod/databases/(default)/documents/artifacts/"..APP_ID.."/public/data/"...`}
+              </div>
+            </div>
+
+            <button 
+              onClick={() => setShowSetup(false)}
+              className="mt-8 w-full py-5 bg-white text-black rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-blue-600 hover:text-white transition-all shadow-xl"
+            >
+              Continue Link
+            </button>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #222; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #333; }
+      `}</style>
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <ErrorBoundary>
+      <DreamNexus />
+    </ErrorBoundary>
+  );
+}
