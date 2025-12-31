@@ -1,18 +1,19 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { 
-  Cpu, 
   Terminal, 
   Database, 
   Zap, 
   Trash2, 
   Copy, 
   Plus, 
-  Code2,
   Save,
   CheckCircle2,
-  History,
-  AlertTriangle,
-  Loader2
+  AlertCircle,
+  Loader2,
+  Code,
+  Share2,
+  Cpu,
+  Layers
 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { 
@@ -32,13 +33,13 @@ import {
   onAuthStateChanged 
 } from 'firebase/auth';
 
-// --- Global Config ---
+// --- Global Configuration ---
 const firebaseConfig = JSON.parse(__firebase_config);
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'luau-architect-v2';
-const apiKey = ""; 
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'luau-dev-hub';
+const apiKey = ""; // Managed by environment
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -46,118 +47,115 @@ export default function App() {
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [activeTab, setActiveTab] = useState('editor');
-  const [currentOutput, setCurrentOutput] = useState('');
+  const [codeOutput, setCodeOutput] = useState('');
   const [logs, setLogs] = useState([]);
-  const [copyStatus, setCopyStatus] = useState(false);
+  const [copyFeedback, setCopyFeedback] = useState(false);
+  const [status, setStatus] = useState('idle');
 
-  // Helper for internal logging
-  const addLog = useCallback((msg, type = "info") => {
-    const time = new Date().toLocaleTimeString();
-    setLogs(prev => [{ msg, type, time }, ...prev].slice(0, 10));
+  // Utility: Logger
+  const pushLog = useCallback((message, type = "info") => {
+    const time = new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    setLogs(prev => [{ time, message, type }, ...prev].slice(0, 20));
   }, []);
 
-  // --- Rule 3: Auth Before Queries ---
+  // Rule 3: Authentication Lifecycle
   useEffect(() => {
-    const performAuth = async () => {
+    const handleAuth = async () => {
       try {
         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
           await signInWithCustomToken(auth, __initial_auth_token);
+          pushLog("Cloud Sync: Verified", "success");
         } else {
           await signInAnonymously(auth);
+          pushLog("Cloud Sync: Guest Session", "info");
         }
       } catch (err) {
-        addLog("Critical Auth Failure", "error");
+        pushLog("Auth Error: Persistence disabled", "error");
       }
     };
-    performAuth();
-
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      if (u) addLog(`System authorized as ${u.uid.substring(0, 8)}`, "success");
-    });
+    handleAuth();
+    const unsubscribe = onAuthStateChanged(auth, setUser);
     return () => unsubscribe();
-  }, [addLog]);
+  }, [pushLog]);
 
-  // --- Rule 1 & 2: Firestore Path & Simple Queries ---
+  // Rules 1 & 2: Firestore Management
   useEffect(() => {
     if (!user) return;
-
-    const scriptRef = collection(db, 'artifacts', appId, 'public', 'data', 'scripts');
-    const q = query(scriptRef);
-
-    const unsubscribe = onSnapshot(q, 
-      (snapshot) => {
-        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        // Manual sort to avoid index requirements (Rule 2)
-        setScripts(data.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)));
-      },
-      (err) => addLog("Vault Sync Interrupted", "error")
-    );
+    const colRef = collection(db, 'artifacts', appId, 'public', 'data', 'luau_scripts');
+    
+    // Simple query to avoid index errors, sorting handled in JS
+    const unsubscribe = onSnapshot(query(colRef), (snapshot) => {
+      const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      const sorted = docs.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+      setScripts(sorted);
+    }, (err) => {
+      pushLog(`Sync Error: ${err.message}`, "error");
+    });
 
     return () => unsubscribe();
-  }, [user, addLog]);
+  }, [user, pushLog]);
 
-  // --- AI Synthesis with Exponential Backoff ---
-  const generateScript = async () => {
+  // AI Generation with Exponential Backoff
+  const generateLuau = async () => {
     if (!prompt.trim() || isGenerating) return;
+    
     setIsGenerating(true);
-    setCurrentOutput('');
-    addLog("Initiating neural synthesis...", "warning");
+    setStatus('generating');
+    pushLog("Requesting synthesis from Gemini 2.5 Flash...", "info");
 
-    const fetchWithBackoff = async (attempt = 0) => {
+    const callApi = async (attempt = 0) => {
       try {
         const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            contents: [{ parts: [{ text: `Generate a robust, high-performance Roblox Luau script for: ${prompt}. Return ONLY code. No text, no markdown backticks.` }] }],
-            systemInstruction: { parts: [{ text: "You are the Luau Architect. You write clean, modular, professional Roblox code. You never include markdown formatting." }] }
+            contents: [{ 
+              parts: [{ text: `Generate a clean, efficient, and well-documented Roblox Luau script for: ${prompt}. Return ONLY the code. No markdown code blocks.` }] 
+            }],
+            systemInstruction: { 
+              parts: [{ text: "You are an expert Roblox Luau Software Engineer. Output production-ready code with Type Checking (--!strict) where possible. No conversational text." }] 
+            }
           })
         });
 
-        if (!response.ok) throw new Error(response.status);
-        const data = await response.json();
-        const code = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        if (!response.ok) throw new Error(`Server returned ${response.status}`);
         
-        setCurrentOutput(code.trim());
-        addLog("Synthesis successful", "success");
+        const data = await response.json();
+        const rawCode = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        
+        setCodeOutput(rawCode.trim());
+        setStatus('idle');
+        pushLog("Synthesis Successful", "success");
       } catch (err) {
         if (attempt < 4) {
-          const delay = Math.pow(2, attempt) * 1000;
-          setTimeout(() => fetchWithBackoff(attempt + 1), delay);
+          const wait = Math.pow(2, attempt) * 1000;
+          pushLog(`Retrying in ${wait/1000}s...`, "warning");
+          setTimeout(() => callApi(attempt + 1), wait);
         } else {
-          addLog("Synthesis engine timed out", "error");
+          pushLog("Synthesis Failed: All retries exhausted", "error");
+          setStatus('error');
         }
       } finally {
         setIsGenerating(false);
       }
     };
 
-    fetchWithBackoff();
+    callApi();
   };
 
   const saveToVault = async () => {
-    if (!currentOutput || !user) return;
+    if (!codeOutput || !user) return;
     try {
-      const id = crypto.randomUUID();
-      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'scripts', id), {
-        content: currentOutput,
+      const docId = crypto.randomUUID();
+      await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'luau_scripts', docId), {
+        content: codeOutput,
         prompt: prompt,
         createdAt: Timestamp.now(),
-        uid: user.uid
+        creator: user.uid
       });
-      addLog("Script committed to Vault", "success");
+      pushLog("Module committed to Vault", "success");
     } catch (err) {
-      addLog("Commit failed", "error");
-    }
-  };
-
-  const deleteFromVault = async (id) => {
-    try {
-      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'scripts', id));
-      addLog("Entry purged", "info");
-    } catch (err) {
-      addLog("Purge failed", "error");
+      pushLog("Commit failed", "error");
     }
   };
 
@@ -166,152 +164,181 @@ export default function App() {
     textArea.value = text;
     document.body.appendChild(textArea);
     textArea.select();
-    document.execCommand('copy');
+    document.execCommand("copy");
     document.body.removeChild(textArea);
-    setCopyStatus(true);
-    setTimeout(() => setCopyStatus(false), 2000);
+    setCopyFeedback(true);
+    setTimeout(() => setCopyFeedback(false), 2000);
+    pushLog("Copied to clipboard", "info");
+  };
+
+  const deleteFromVault = async (id) => {
+    try {
+      await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'luau_scripts', id));
+      pushLog("Module purged from Vault", "info");
+    } catch (err) {
+      pushLog("Purge failed", "error");
+    }
   };
 
   return (
-    <div className="min-h-screen bg-[#020203] text-zinc-300 font-mono text-sm selection:bg-emerald-500/30">
-      {/* Header */}
-      <nav className="border-b border-white/5 bg-zinc-950/50 backdrop-blur-md sticky top-0 z-50">
-        <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-emerald-500/10 rounded flex items-center justify-center border border-emerald-500/20">
-              <Cpu className="w-4 h-4 text-emerald-500" />
+    <div className="min-h-screen bg-[#0a0a0c] text-slate-300 font-sans selection:bg-indigo-500/30">
+      {/* Top Navigation */}
+      <nav className="h-16 border-b border-white/5 bg-black/40 backdrop-blur-md sticky top-0 z-50 px-6 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="bg-indigo-600/20 p-2 rounded-lg border border-indigo-500/30">
+            <Layers className="w-5 h-5 text-indigo-400" />
+          </div>
+          <div>
+            <h1 className="text-white font-bold tracking-tight text-lg">LUAU HUB</h1>
+            <div className="flex items-center gap-2">
+              <span className={`w-1.5 h-1.5 rounded-full ${user ? 'bg-emerald-500' : 'bg-amber-500'} animate-pulse`} />
+              <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                {user ? `Cloud Active: ${user.uid.slice(0, 8)}` : 'Connecting...'}
+              </span>
             </div>
-            <span className="font-black text-white tracking-widest uppercase">LUAU<span className="text-emerald-500 font-normal">ARCHITECT</span></span>
           </div>
-          <div className="flex gap-1 bg-black p-1 rounded-lg border border-white/5">
-            <button 
-              onClick={() => setActiveTab('editor')}
-              className={`px-4 py-1.5 rounded-md transition-all flex items-center gap-2 text-[10px] font-bold ${activeTab === 'editor' ? 'bg-zinc-800 text-white' : 'text-zinc-500'}`}
-            >
-              <Terminal className="w-3 h-3" /> EDITOR
-            </button>
-            <button 
-              onClick={() => setActiveTab('vault')}
-              className={`px-4 py-1.5 rounded-md transition-all flex items-center gap-2 text-[10px] font-bold ${activeTab === 'vault' ? 'bg-zinc-800 text-white' : 'text-zinc-500'}`}
-            >
-              <Database className="w-3 h-3" /> VAULT
-            </button>
-          </div>
+        </div>
+
+        <div className="flex p-1 bg-white/5 rounded-xl border border-white/5">
+          <button 
+            onClick={() => setActiveTab('editor')}
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${activeTab === 'editor' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+          >
+            <Terminal className="w-3.5 h-3.5" /> EDITOR
+          </button>
+          <button 
+            onClick={() => setActiveTab('vault')}
+            className={`px-4 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-2 ${activeTab === 'vault' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+          >
+            <Database className="w-3.5 h-3.5" /> VAULT
+          </button>
         </div>
       </nav>
 
-      <main className="max-w-6xl mx-auto p-4 md:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <main className="max-w-7xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        {/* Input Controls */}
+        {/* Left Column: Input & Logs */}
         <div className="lg:col-span-4 space-y-6">
-          <div className="bg-zinc-900/50 border border-white/5 rounded-xl p-5 space-y-4">
-            <div className="flex items-center gap-2 text-zinc-500 text-[10px] font-black uppercase tracking-widest">
-              <Zap className="w-3 h-3 text-emerald-500" /> Neural Input
+          <section className="bg-slate-900/40 border border-white/5 rounded-2xl p-5 space-y-4 backdrop-blur-sm">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-widest">Neural Prompt</label>
+              <Cpu className="w-3.5 h-3.5 text-indigo-400" />
             </div>
             <textarea 
-              className="w-full h-32 bg-black/50 border border-white/10 rounded-lg p-3 text-xs focus:outline-none focus:border-emerald-500/50 transition-all resize-none"
-              placeholder="Describe your Roblox script goal..."
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
+              placeholder="Describe your module... (e.g. A raycast-based hitbox system with debug visualization)"
+              className="w-full h-32 bg-black/40 border border-white/10 rounded-xl p-4 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500/50 transition-all resize-none placeholder:text-slate-700"
             />
             <button 
-              onClick={generateScript}
+              onClick={generateLuau}
               disabled={isGenerating || !prompt}
-              className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-30 text-white rounded-lg font-bold flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-emerald-900/10"
+              className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-30 disabled:cursor-not-allowed text-white rounded-xl font-bold flex items-center justify-center gap-2 shadow-xl shadow-indigo-600/10 transition-all active:scale-[0.98]"
             >
-              {isGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-              {isGenerating ? "SYNTHESIZING..." : "GENERATE SCRIPT"}
+              {isGenerating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Zap className="w-4 h-4 fill-current" />}
+              {isGenerating ? "GENERATING..." : "SYNTHESIZE CODE"}
             </button>
-          </div>
+          </section>
 
-          <div className="bg-zinc-900/50 border border-white/5 rounded-xl flex flex-col h-48 overflow-hidden">
-            <div className="p-3 border-b border-white/5 bg-black/20 text-[10px] text-zinc-500 font-bold uppercase tracking-widest flex items-center gap-2">
-              <History className="w-3 h-3" /> Telemetry
+          <section className="bg-slate-900/40 border border-white/5 rounded-2xl flex flex-col h-[380px] overflow-hidden">
+            <div className="px-5 py-3 border-b border-white/5 bg-black/20 flex items-center justify-between">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                <Terminal className="w-3 h-3" /> Event Log
+              </span>
             </div>
-            <div className="flex-1 p-3 overflow-y-auto space-y-1.5 font-mono text-[10px]">
-              {logs.length === 0 && <div className="text-zinc-800">System idle...</div>}
+            <div className="flex-1 overflow-y-auto p-4 space-y-2 font-mono text-[11px]">
               {logs.map((log, i) => (
-                <div key={i} className={`flex gap-2 ${log.type === 'error' ? 'text-red-400' : log.type === 'success' ? 'text-emerald-400' : 'text-zinc-500'}`}>
-                  <span className="opacity-30">[{log.time}]</span> {log.msg}
+                <div key={i} className="flex gap-3 leading-relaxed">
+                  <span className="text-slate-600 shrink-0">[{log.time}]</span>
+                  <span className={log.type === 'error' ? 'text-rose-400' : log.type === 'success' ? 'text-emerald-400' : log.type === 'warning' ? 'text-amber-400' : 'text-slate-400'}>
+                    {log.message}
+                  </span>
                 </div>
               ))}
+              {logs.length === 0 && <div className="text-slate-700 italic">No system events...</div>}
             </div>
-          </div>
+          </section>
         </div>
 
-        {/* Output Display */}
+        {/* Right Column: Content Area */}
         <div className="lg:col-span-8">
           {activeTab === 'editor' ? (
-            <div className="bg-zinc-950 border border-white/5 rounded-xl h-[600px] flex flex-col overflow-hidden shadow-2xl">
-              <div className="p-3 border-b border-white/5 bg-black/40 flex items-center justify-between">
-                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Compiler Buffer</span>
-                <div className="flex gap-2">
+            <div className="bg-[#050506] border border-white/10 rounded-2xl h-full min-h-[600px] flex flex-col shadow-2xl relative overflow-hidden">
+              <div className="h-12 border-b border-white/5 bg-slate-900/40 px-6 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">Compiler View</span>
+                </div>
+                <div className="flex items-center gap-2">
                   <button 
-                    onClick={() => copyCode(currentOutput)}
-                    className="p-1.5 hover:bg-white/5 rounded-md transition-all text-zinc-400 hover:text-white"
+                    onClick={() => copyCode(codeOutput)}
+                    className="p-1.5 hover:bg-white/5 rounded-md text-slate-500 hover:text-white transition-colors flex items-center gap-2"
                   >
-                    {copyStatus ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                    {copyFeedback ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span className="text-[10px] font-bold">COPY</span>
                   </button>
                   <button 
                     onClick={saveToVault}
-                    disabled={!currentOutput}
-                    className="flex items-center gap-2 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 rounded text-[10px] font-black hover:bg-emerald-500/20 disabled:opacity-20"
+                    disabled={!codeOutput}
+                    className="ml-2 px-4 py-1 bg-white text-black rounded-lg text-[10px] font-black hover:bg-indigo-400 hover:text-white transition-all disabled:opacity-20"
                   >
-                    <Save className="w-3 h-3" /> COMMIT TO VAULT
+                    SAVE MODULE
                   </button>
                 </div>
               </div>
-              <div className="flex-1 relative">
+
+              <div className="flex-1 p-6 relative">
                 <textarea 
                   readOnly
-                  value={currentOutput}
-                  className="w-full h-full bg-transparent p-6 text-sm text-emerald-50/80 focus:outline-none resize-none font-mono"
-                  placeholder="-- Neural output will appear here..."
+                  value={codeOutput}
+                  className="w-full h-full bg-transparent text-indigo-100 font-mono text-sm leading-relaxed focus:outline-none resize-none"
+                  placeholder="-- Generated code will appear here..."
                 />
+                
                 {isGenerating && (
-                  <div className="absolute inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center">
-                    <div className="flex flex-col items-center gap-2">
-                      <Loader2 className="w-8 h-8 text-emerald-500 animate-spin" />
-                      <span className="text-[10px] font-black text-emerald-500 tracking-[0.5em] animate-pulse">SYNTHESIZING</span>
+                  <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center">
+                    <div className="text-center">
+                      <Loader2 className="w-10 h-10 text-indigo-500 animate-spin mx-auto mb-3" />
+                      <p className="text-xs font-bold text-indigo-400 animate-pulse tracking-widest uppercase">Syncing Neurons</p>
                     </div>
                   </div>
                 )}
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 auto-rows-min">
               {scripts.length === 0 ? (
-                <div className="col-span-full py-20 border border-dashed border-white/10 rounded-xl flex flex-col items-center justify-center text-zinc-700">
-                  <Database className="w-12 h-12 opacity-10 mb-3" />
-                  <p className="text-xs uppercase tracking-widest">Vault Empty</p>
+                <div className="col-span-full py-20 border border-dashed border-white/5 rounded-3xl flex flex-col items-center justify-center text-slate-600">
+                  <Database className="w-12 h-12 mb-4 opacity-10" />
+                  <p className="text-sm font-bold uppercase tracking-widest">No modules in storage</p>
                 </div>
               ) : (
                 scripts.map(s => (
-                  <div key={s.id} className="bg-zinc-900/40 border border-white/5 rounded-xl p-4 flex flex-col justify-between group hover:border-emerald-500/30 transition-all">
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-start">
-                        <div className="flex items-center gap-2">
-                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]" />
-                          <span className="text-[9px] text-zinc-600 font-bold uppercase tracking-widest">Entry: {s.id.substring(0, 8)}</span>
-                        </div>
-                        <button onClick={() => deleteFromVault(s.id)} className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400 transition-all">
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                  <div key={s.id} className="group bg-slate-900/40 border border-white/5 p-5 rounded-2xl hover:border-indigo-500/50 transition-all flex flex-col gap-4">
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-center gap-2 bg-black/40 px-2 py-1 rounded border border-white/5">
+                        <Code className="w-3 h-3 text-indigo-400" />
+                        <span className="text-[10px] font-mono font-bold text-slate-500">{s.id.slice(0, 8)}</span>
                       </div>
-                      <p className="text-xs text-zinc-400 font-bold line-clamp-2">"{s.prompt}"</p>
-                    </div>
-                    <div className="mt-6 flex gap-2">
                       <button 
-                        onClick={() => { setCurrentOutput(s.content); setPrompt(s.prompt); setActiveTab('editor'); }}
-                        className="flex-1 py-2 bg-zinc-800 hover:bg-zinc-700 text-white rounded text-[10px] font-black tracking-widest uppercase transition-all"
+                        onClick={() => deleteFromVault(s.id)}
+                        className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-rose-500/20 text-slate-600 hover:text-rose-400 rounded-md transition-all"
                       >
-                        RECALL
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <p className="text-xs text-slate-200 line-clamp-2 italic leading-relaxed">"{s.prompt}"</p>
+                    <div className="flex gap-2 pt-2 mt-auto">
+                      <button 
+                        onClick={() => { setCodeOutput(s.content); setPrompt(s.prompt); setActiveTab('editor'); }}
+                        className="flex-1 bg-white/5 hover:bg-white/10 text-[10px] font-bold py-2 rounded-lg transition-colors flex items-center justify-center gap-2"
+                      >
+                        <Share2 className="w-3 h-3" /> OPEN
                       </button>
                       <button 
                         onClick={() => copyCode(s.content)}
-                        className="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-400 rounded transition-all"
+                        className="bg-indigo-600/20 hover:bg-indigo-600/40 p-2 rounded-lg transition-colors border border-indigo-500/20"
                       >
-                        <Copy className="w-4 h-4" />
+                        <Copy className="w-3.5 h-3.5 text-indigo-400" />
                       </button>
                     </div>
                   </div>
@@ -321,11 +348,6 @@ export default function App() {
           )}
         </div>
       </main>
-
-      <footer className="max-w-6xl mx-auto p-8 border-t border-white/5 flex justify-between items-center opacity-30 text-[9px] font-black uppercase tracking-[0.3em]">
-        <span>Engine: Gemini-2.5-Flash</span>
-        <span>Architect Protocol v2.0.4</span>
-      </footer>
     </div>
   );
 }
