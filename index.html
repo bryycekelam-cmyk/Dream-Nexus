@@ -1,129 +1,193 @@
 import React, { useState, useEffect } from 'react';
-import { Send, Terminal, Sparkles, RefreshCw, AlertCircle } from 'lucide-react';
+import { initializeApp } from 'firebase/app';
+import { getAuth, signInAnonymously, onAuthStateChanged } from 'firebase/auth';
+import { getFirestore, collection, addDoc, query, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { Terminal, Zap, Shield, Database, Send, Cpu, Boxes } from 'lucide-react';
 
-// Configuration
+// Firebase Configuration
+const firebaseConfig = JSON.parse(__firebase_config);
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'roblox-nexus-v1';
 const apiKey = ""; 
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'roblox-bridge-v1';
 
 export default function App() {
-  const [userInput, setUserInput] = useState("");
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [history, setHistory] = useState([]);
-  const [status, setStatus] = useState("online");
+  const [user, setUser] = useState(null);
+  const [input, setInput] = useState("");
+  const [logs, setLogs] = useState([]);
+  const [isDeploying, setIsDeploying] = useState(false);
+  const [status, setStatus] = useState("AWAITING_AUTH");
 
-  const addHistory = (type, message, code = null) => {
-    setHistory(prev => [{
-      id: Date.now(),
-      type,
-      message,
-      code,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    }, ...prev]);
-  };
+  // 1. Authenticate
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
+        }
+        setStatus("CONNECTED");
+      } catch (err) {
+        setStatus("AUTH_ERROR");
+      }
+    };
+    initAuth();
+    const unsubscribe = onAuthStateChanged(auth, setUser);
+    return () => unsubscribe();
+  }, []);
 
-  const handleGenerate = async () => {
-    if (!userInput.trim() || isGenerating) return;
+  // 2. Listen for synced logs (Public Data for Roblox to read)
+  useEffect(() => {
+    if (!user) return;
+    const q = collection(db, 'artifacts', appId, 'public', 'data', 'deployments');
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      // Simple sort by timestamp in memory (Rule 2)
+      setLogs(items.sort((a, b) => {
+        const timeA = a.timestamp?.seconds || 0;
+        const timeB = b.timestamp?.seconds || 0;
+        return timeB - timeA;
+      }));
+    }, (error) => console.error("Firestore Error:", error));
 
-    setIsGenerating(true);
-    const originalPrompt = userInput;
-    setUserInput("");
-    addHistory('user', originalPrompt);
+    return () => unsubscribe();
+  }, [user]);
+
+  const deployToRoblox = async () => {
+    if (!input.trim() || !user || isDeploying) return;
+    setIsDeploying(true);
+    setStatus("GENERATING");
 
     try {
+      // Step 1: Generate Luau Code via Gemini
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: `Generate a Roblox Luau script for: ${originalPrompt}. Return ONLY the code. No explanation. No backticks.` }] }]
+          contents: [{ parts: [{ text: `Generate a Roblox Luau script for: ${input}. 
+          Return ONLY the code. No explanation. No backticks. 
+          Use clear comments. Ensure it is a valid Server Script.` }] }]
         })
       });
 
       const data = await response.json();
-      const generatedCode = data.candidates?.[0]?.content?.parts?.[0]?.text || "-- Error generating code";
-      
-      // Here is where the data would be saved to Firestore for the Plugin to read
-      addHistory('ai', 'Script generated and pushed to Plugin queue.', generatedCode);
-      setStatus("transmitting");
-      setTimeout(() => setStatus("online"), 3000);
+      const generatedCode = data.candidates?.[0]?.content?.parts?.[0]?.text || "-- Error";
 
-    } catch (error) {
-      addHistory('error', 'Connection failed. Please check your network.');
-      setStatus("error");
+      // Step 2: Push to Firestore (Roblox Plugin will poll this)
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'deployments'), {
+        prompt: input,
+        code: generatedCode,
+        timestamp: serverTimestamp(),
+        sender: user.uid,
+        status: "pending"
+      });
+
+      setInput("");
+      setStatus("DEPLOYED");
+      setTimeout(() => setStatus("CONNECTED"), 2000);
+    } catch (err) {
+      console.error(err);
+      setStatus("ERROR");
     } finally {
-      setIsGenerating(false);
+      setIsDeploying(false);
     }
   };
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white font-mono flex flex-col">
-      {/* Top Bar */}
-      <div className="p-4 border-b border-white/10 flex justify-between items-center bg-[#0a0a0a]">
-        <div className="flex items-center gap-3">
-          <div className={`w-2 h-2 rounded-full animate-pulse ${status === 'online' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-          <h1 className="text-xs font-bold uppercase tracking-[0.2em]">Nexus_Bridge_V2.0</h1>
-        </div>
-        <div className="text-[10px] text-white/40 uppercase">
-          Plugin Status: <span className="text-white/80">Polling Every 1.5s</span>
-        </div>
-      </div>
-
-      {/* Main Feed */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-6 max-w-4xl mx-auto w-full scroll-smooth">
-        {history.length === 0 && (
-          <div className="h-full flex flex-col items-center justify-center opacity-20 mt-20">
-            <Sparkles size={48} className="mb-4" />
-            <p className="text-sm">Enter instructions to begin injection...</p>
-          </div>
-        )}
-
-        {history.map((item) => (
-          <div key={item.id} className={`flex flex-col ${item.type === 'user' ? 'items-end' : 'items-start'}`}>
-            <div className={`max-w-[80%] p-4 rounded-2xl ${
-              item.type === 'user' ? 'bg-white/5 border border-white/10' : 
-              item.type === 'error' ? 'bg-rose-500/10 border border-rose-500/20' : 
-              'bg-blue-600/10 border border-blue-500/20'
-            }`}>
-              <div className="flex items-center gap-2 mb-2 opacity-50 text-[10px] uppercase font-bold">
-                {item.type === 'user' ? 'You' : 'Nexus AI'} • {item.time}
-              </div>
-              <p className="text-sm leading-relaxed">{item.message}</p>
-              {item.code && (
-                <div className="mt-4 bg-black/60 p-3 rounded-lg border border-white/5 overflow-x-auto">
-                  <pre className="text-[11px] text-blue-300"><code>{item.code}</code></pre>
-                </div>
-              )}
+    <div className="min-h-screen bg-[#020203] text-[#00ffcc] font-mono selection:bg-[#00ffcc] selection:text-black">
+      {/* Header */}
+      <nav className="border-b border-[#00ffcc]/20 bg-black/40 backdrop-blur-md sticky top-0 z-50 p-4">
+        <div className="max-w-6xl mx-auto flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <div className="bg-[#00ffcc] p-1.5 rounded-sm">
+              <Terminal size={20} className="text-black" />
+            </div>
+            <div>
+              <h1 className="text-lg font-black tracking-tighter uppercase italic">Nexus.Bridge</h1>
+              <p className="text-[10px] opacity-60">AI {"->"} ROBLOX LIVE INJECTION</p>
             </div>
           </div>
-        ))}
-      </div>
-
-      {/* Input Area */}
-      <div className="p-6 bg-[#0a0a0a] border-t border-white/10">
-        <div className="max-w-4xl mx-auto relative">
-          <textarea
-            value={userInput}
-            onChange={(e) => setUserInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleGenerate();
-              }
-            }}
-            placeholder="Describe what you want to build in Roblox..."
-            className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 pr-16 focus:outline-none focus:border-white/20 transition-all resize-none h-24 text-sm"
-          />
-          <button
-            onClick={handleGenerate}
-            disabled={isGenerating}
-            className="absolute right-3 bottom-3 p-3 bg-white text-black rounded-xl hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:scale-100"
-          >
-            {isGenerating ? <RefreshCw className="animate-spin" size={20} /> : <Send size={20} />}
-          </button>
+          <div className="flex items-center gap-6 text-[11px] uppercase tracking-widest">
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${status === 'CONNECTED' ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+              <span>{status}</span>
+            </div>
+            <div className="hidden md:block opacity-40">UID: {user?.uid || 'anonymous'}</div>
+          </div>
         </div>
-        <p className="text-center mt-3 text-[10px] text-white/20 uppercase tracking-widest font-bold">
-          Artificial Intelligence Bridge Module • Ready for commands
-        </p>
-      </div>
+      </nav>
+
+      <main className="max-w-6xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Left: Command Entry */}
+        <div className="lg:col-span-5 space-y-6">
+          <div className="bg-[#0a0a0c] border border-[#00ffcc]/10 p-6 rounded-lg relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-20 transition-opacity">
+              <Cpu size={80} />
+            </div>
+            <h2 className="text-xs font-bold mb-4 flex items-center gap-2 opacity-80">
+              <Zap size={14} /> NEW INSTRUCTION
+            </h2>
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="e.g., Make a giant volcano that erupts every 10 seconds..."
+              className="w-full h-40 bg-black/50 border border-[#00ffcc]/20 rounded p-4 text-sm focus:outline-none focus:border-[#00ffcc] transition-colors placeholder:text-[#00ffcc]/20"
+            />
+            <button
+              onClick={deployToRoblox}
+              disabled={isDeploying}
+              className="w-full mt-4 bg-[#00ffcc] text-black font-black py-4 rounded hover:bg-white transition-all flex items-center justify-center gap-2 disabled:opacity-50 uppercase text-xs"
+            >
+              {isDeploying ? "Processing Neural Link..." : "Deploy to Roblox Engine"}
+              <Send size={16} />
+            </button>
+          </div>
+
+          <div className="bg-[#0a0a0c] border border-[#00ffcc]/10 p-4 rounded-lg flex items-center gap-4">
+             <div className="p-3 bg-white/5 rounded"><Boxes className="text-[#00ffcc]" /></div>
+             <div>
+               <h3 className="text-[11px] font-bold">PLUGIN ID REQUIRED:</h3>
+               <p className="text-[13px] text-white/70">{appId}</p>
+             </div>
+          </div>
+        </div>
+
+        {/* Right: Real-time Deployment Log */}
+        <div className="lg:col-span-7 flex flex-col h-[70vh]">
+          <div className="bg-[#0a0a0c] border border-[#00ffcc]/10 rounded-lg flex-1 flex flex-col overflow-hidden">
+            <div className="bg-white/5 p-3 border-b border-[#00ffcc]/10 flex items-center justify-between">
+              <span className="text-[10px] font-bold flex items-center gap-2">
+                <Database size={12} /> LIVE_DEPLOYMENT_STREAM
+              </span>
+              <span className="text-[10px] opacity-40">TOTAL_INJECTIONS: {logs.length}</span>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {logs.length === 0 && (
+                <div className="h-full flex flex-col items-center justify-center opacity-20 text-center">
+                  <Shield size={48} className="mb-4" />
+                  <p className="text-xs uppercase tracking-widest">Awaiting first instruction...</p>
+                </div>
+              )}
+              {logs.map((log) => (
+                <div key={log.id} className="border-l-2 border-[#00ffcc] bg-white/5 p-4 rounded-r animate-in fade-in slide-in-from-right-2">
+                  <div className="flex justify-between items-start mb-2">
+                    <span className="text-[10px] bg-[#00ffcc] text-black px-2 py-0.5 font-bold uppercase">SUCCESS</span>
+                    <span className="text-[10px] opacity-40">
+                      {log.timestamp ? new Date(log.timestamp.seconds * 1000).toLocaleTimeString() : '...'}
+                    </span>
+                  </div>
+                  <p className="text-sm text-white mb-3">"{log.prompt}"</p>
+                  <div className="bg-black/80 p-3 rounded border border-white/5 text-[11px] text-blue-300 overflow-x-auto">
+                    <pre><code>{log.code}</code></pre>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </main>
     </div>
   );
 }
