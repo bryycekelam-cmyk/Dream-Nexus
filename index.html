@@ -1,22 +1,10 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { initializeApp, getApps } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
-import { 
-  Zap, 
-  Terminal, 
-  Play, 
-  Info, 
-  Copy, 
-  Check, 
-  X, 
-  Activity, 
-  ShieldAlert,
-  Cpu,
-  Globe
-} from 'lucide-react';
+import { Zap, Terminal, Play, Cpu, Copy, Check, X, Globe, Activity } from 'lucide-react';
 
-// --- CONFIGURATION ---
+// Firebase Logic
 const firebaseConfig = typeof __firebase_config !== 'undefined' 
   ? JSON.parse(__firebase_config) 
   : { apiKey: "", authDomain: "", projectId: "", storageBucket: "", messagingSenderId: "", appId: "" };
@@ -34,15 +22,11 @@ const App = () => {
   const [isOnline, setIsOnline] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [copied, setCopied] = useState(false);
-  const scrollRef = useRef(null);
 
-  // --- LOGGING ENGINE ---
   const addLog = useCallback((text, type = 'info') => {
-    const id = Date.now() + Math.random();
-    setLogs(prev => [{ id, text, type, time: new Date().toLocaleTimeString() }, ...prev].slice(0, 30));
+    setLogs(prev => [{ id: Date.now() + Math.random(), text, type, time: new Date().toLocaleTimeString() }, ...prev].slice(0, 20));
   }, []);
 
-  // --- AUTHENTICATION ---
   useEffect(() => {
     const startAuth = async () => {
       try {
@@ -51,296 +35,139 @@ const App = () => {
         } else {
           await signInAnonymously(auth);
         }
-      } catch (err) {
-        addLog("Auth Bridge Failure", "error");
-      }
+      } catch (err) { addLog("Auth Error", "error"); }
     };
-
     startAuth();
-    const unsub = onAuthStateChanged(auth, (u) => {
-      if (u) {
-        setUser(u);
-        addLog("Neural link stable: " + u.uid.slice(0, 8), "success");
-      }
-    });
-    return () => unsub();
+    return onAuthStateChanged(auth, (u) => { if (u) { setUser(u); addLog("Nexus Link Established", "success"); } });
   }, [addLog]);
 
-  // --- HEARTBEAT MONITOR ---
   useEffect(() => {
     if (!user) return;
-    const ref = doc(db, 'artifacts', appId, 'public', 'data', 'status', 'heartbeat');
-    const unsub = onSnapshot(ref, (snap) => {
+    return onSnapshot(doc(db, 'artifacts', appId, 'public', 'data', 'status', 'heartbeat'), (snap) => {
       if (snap.exists()) {
         const lastSeen = snap.data().lastSeen || 0;
         setIsOnline(Date.now() - lastSeen < 25000);
       }
     }, () => setIsOnline(false));
-    return () => unsub();
   }, [user]);
 
-  // --- AI TRANSMISSION ---
   const transmit = async () => {
     if (!prompt.trim() || isThinking || !user) return;
     setIsThinking(true);
-    addLog(`Transmitting: ${prompt.slice(0, 20)}...`, "info");
-
+    addLog("Transmitting neural packet...", "info");
     try {
-      const apiKey = ""; 
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          systemInstruction: { parts: [{ text: "Write clean, functional Roblox Luau code ONLY. No markdown, no notes." }] }
+          systemInstruction: { parts: [{ text: "Output ONLY valid Luau code. No markdown formatting." }] }
         })
       });
-
       const data = await res.json();
       const code = data.candidates?.[0]?.content?.parts?.[0]?.text?.replace(/```lua|```/g, '').trim();
-
       if (code) {
-        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'bridge', 'current'), {
-          code,
-          timestamp: Date.now(),
-          sender: user.uid
-        });
-        addLog("Packet received by Cloud Bridge", "success");
+        await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'bridge', 'current'), { code, timestamp: Date.now(), sender: user.uid });
+        addLog("Sync Complete", "success");
         setPrompt("");
       }
-    } catch (e) {
-      addLog("Interference detected: " + e.message, "error");
-    } finally {
-      setIsThinking(false);
-    }
+    } catch (e) { addLog("Transmission Failed", "error"); } finally { setIsThinking(false); }
   };
 
   const copyScript = () => {
-    const script = `-- Nexus Ultra Bridge
-local Http = game:GetService("HttpService")
-local ID = "${appId}"
-local URL = "https://firestore.googleapis.com/v1/projects/v-canvas-prod/databases/(default)/documents/artifacts/"..ID.."/public/data/"
-
-task.spawn(function()
-    while true do
-        pcall(function()
-            Http:RequestAsync({
-                Url = URL.."status/heartbeat?updateMask.fieldPaths=lastSeen",
-                Method = "PATCH",
-                Body = Http:JSONEncode({fields={lastSeen={integerValue=os.time()*1000}}})
-            })
-        end)
-        task.wait(10)
-    end
-end)
-
-local last = 0
-while true do
-    local s, r = pcall(function() return Http:GetAsync(URL.."bridge/current") end)
-    if s and r then
-        local d = Http:JSONDecode(r)
-        if d.fields and d.fields.timestamp then
-            local ts = tonumber(d.fields.timestamp.doubleValue or d.fields.timestamp.integerValue)
-            if ts and ts > last then
-                last = ts
-                local fn, err = loadstring(d.fields.code.stringValue)
-                if fn then task.spawn(fn) else warn(err) end
-            end
-        end
-    end
-    task.wait(2)
-end`;
-    const textarea = document.createElement("textarea");
-    textarea.value = script;
-    document.body.appendChild(textarea);
-    textarea.select();
-    document.execCommand("copy");
-    document.body.removeChild(textarea);
+    const script = `-- Nexus Ultra Bridge\nlocal ID = "${appId}"\nlocal URL = "https://firestore.googleapis.com/v1/projects/v-canvas-prod/databases/(default)/documents/artifacts/"..ID.."/public/data/"\n-- Heartbeat loop\ntask.spawn(function() while true do pcall(function() game:GetService("HttpService"):RequestAsync({Url = URL.."status/heartbeat?updateMask.fieldPaths=lastSeen", Method = "PATCH", Body = game:GetService("HttpService"):JSONEncode({fields={lastSeen={integerValue=os.time()*1000}}})}) end) task.wait(10) end end)\n-- Listener loop\nlocal last = 0 while true do pcall(function() local r = game:GetService("HttpService"):GetAsync(URL.."bridge/current") local d = game:GetService("HttpService"):JSONDecode(r) if d.fields and d.fields.timestamp then local ts = tonumber(d.fields.timestamp.doubleValue or d.fields.timestamp.integerValue) if ts > last then last = ts loadstring(d.fields.code.stringValue)() end end end) task.wait(2) end`;
+    document.addEventListener('copy', (e) => { e.clipboardData.setData('text/plain', script); e.preventDefault(); }, { once: true });
+    document.execCommand('copy');
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   return (
-    <div className="fixed inset-0 bg-[#050506] text-white flex flex-col font-sans overflow-hidden">
-      {/* Dynamic Background */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-20">
-        <div className="absolute -top-1/2 -left-1/2 w-full h-full bg-blue-900/20 blur-[120px] rounded-full animate-pulse" />
-        <div className="absolute -bottom-1/2 -right-1/2 w-full h-full bg-indigo-900/20 blur-[120px] rounded-full" />
-      </div>
-
-      {/* Navigation */}
-      <header className="relative z-10 h-20 border-b border-white/5 px-6 flex items-center justify-between backdrop-blur-md bg-black/40">
-        <div className="flex items-center gap-4">
-          <div className="w-10 h-10 bg-gradient-to-tr from-blue-600 to-indigo-500 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
-            <Zap size={22} fill="white" stroke="none" />
+    <div className="flex flex-col h-screen w-full bg-black text-zinc-100 font-sans p-4 overflow-hidden">
+      {/* Header */}
+      <header className="flex items-center justify-between bg-zinc-900/50 border border-zinc-800 rounded-2xl p-4 mb-4">
+        <div className="flex items-center gap-3">
+          <div className="bg-blue-600 p-2 rounded-lg shadow-lg shadow-blue-900/40">
+            <Zap size={20} fill="white" />
           </div>
           <div>
-            <h1 className="font-black italic text-xl tracking-tight leading-none uppercase">Nexus Ultra</h1>
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-[10px] text-zinc-500 font-bold tracking-[0.3em]">RELIABILITY V1.0</span>
-              <div className={`px-2 py-0.5 rounded text-[8px] font-bold ${isOnline ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
-                {isOnline ? "BRIDGE ONLINE" : "BRIDGE OFFLINE"}
-              </div>
+            <h1 className="text-lg font-black tracking-tighter uppercase italic">Nexus Ultra</h1>
+            <div className="flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+              <span className="text-[10px] font-bold text-zinc-500 uppercase">{isOnline ? 'Active' : 'Disconnected'}</span>
             </div>
           </div>
         </div>
-
-        <div className="flex items-center gap-3">
-           <button 
-            onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 bg-zinc-900 hover:bg-zinc-800 px-4 py-2.5 rounded-xl border border-white/5 transition-all text-sm font-bold"
-          >
-            <Cpu size={16} />
-            <span className="hidden sm:inline">Bridge Setup</span>
-          </button>
-        </div>
+        <button onClick={() => setShowModal(true)} className="bg-zinc-800 hover:bg-zinc-700 text-xs font-bold px-4 py-2 rounded-xl transition-all flex items-center gap-2">
+          <Cpu size={14} /> Setup Bridge
+        </button>
       </header>
 
-      {/* Workspace */}
-      <main className="relative z-10 flex-1 flex flex-col lg:flex-row p-6 gap-6 overflow-hidden">
-        
-        {/* Input Zone */}
-        <div className="flex-1 flex flex-col gap-6">
-          <div className="flex-1 bg-zinc-950/50 border border-white/5 rounded-[40px] p-8 flex flex-col shadow-2xl relative overflow-hidden group">
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-600 via-indigo-500 to-blue-600 animate-gradient" />
-            
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-2">
-                <Globe size={14} className="text-blue-500" />
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Neural Command Center</span>
-              </div>
-            </div>
-
-            <textarea 
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Manifest your vision in Roblox Studio..."
-              className="flex-1 w-full bg-transparent border-none text-2xl font-medium placeholder:text-zinc-800 focus:ring-0 resize-none leading-relaxed"
-            />
-
-            <div className="mt-8 flex items-center justify-between border-t border-white/5 pt-8">
-              <div className="flex gap-2">
-                {['Gameplay', 'Visuals', 'Systems'].map(tag => (
-                  <button 
-                    key={tag}
-                    onClick={() => setPrompt(p => p + ` [${tag}] `)}
-                    className="px-4 py-2 bg-zinc-900/50 hover:bg-zinc-800 rounded-xl text-[10px] font-black uppercase tracking-widest text-zinc-400 border border-white/5 transition-colors"
-                  >
-                    {tag}
-                  </button>
+      {/* Main Content */}
+      <div className="flex flex-col lg:flex-row gap-4 flex-1 overflow-hidden">
+        {/* Editor */}
+        <div className="flex-[2] bg-zinc-900/30 border border-zinc-800 rounded-[32px] p-6 flex flex-col relative">
+          <div className="flex items-center gap-2 mb-4 text-zinc-500">
+            <Globe size={12} />
+            <span className="text-[10px] font-black uppercase tracking-widest">Global Uplink</span>
+          </div>
+          <textarea 
+            className="flex-1 bg-transparent border-none focus:ring-0 text-xl font-medium placeholder-zinc-800 resize-none leading-relaxed"
+            placeholder="Describe the system to generate..."
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+          />
+          <div className="flex items-center justify-between mt-4 pt-4 border-t border-zinc-800/50">
+             <div className="flex gap-2">
+                {['Combat', 'UI', 'Movement'].map(t => (
+                  <button key={t} onClick={() => setPrompt(p => p + `[${t}] `)} className="text-[9px] font-bold px-3 py-1 bg-zinc-800 rounded-lg hover:bg-zinc-700 transition-colors uppercase tracking-widest">{t}</button>
                 ))}
-              </div>
-
-              <button 
+             </div>
+             <button 
                 onClick={transmit}
-                disabled={isThinking || !isOnline}
-                className={`px-10 py-4 rounded-2xl font-black uppercase text-[11px] tracking-[0.2em] flex items-center gap-3 transition-all ${
-                  isOnline 
-                    ? 'bg-white text-black hover:bg-blue-600 hover:text-white shadow-xl hover:shadow-blue-500/40' 
-                    : 'bg-zinc-800 text-zinc-600 cursor-not-allowed opacity-50'
-                }`}
-              >
-                {isThinking ? (
-                  <Activity size={18} className="animate-pulse" />
-                ) : (
-                  <Play size={16} fill="currentColor" />
-                )}
-                {isThinking ? 'Processing' : 'Transmit'}
-              </button>
-            </div>
+                disabled={!isOnline || isThinking}
+                className={`px-8 py-3 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all flex items-center gap-2 ${isOnline ? 'bg-white text-black hover:scale-105 active:scale-95' : 'bg-zinc-800 text-zinc-600 opacity-50'}`}
+             >
+                {isThinking ? <Activity size={16} className="animate-spin" /> : <Play size={14} fill="currentColor" />}
+                {isThinking ? 'Syncing' : 'Transmit'}
+             </button>
           </div>
         </div>
 
-        {/* Console Zone */}
-        <div className="w-full lg:w-[400px] flex flex-col">
-          <div className="flex-1 bg-black border border-white/5 rounded-[40px] flex flex-col overflow-hidden shadow-inner">
-            <div className="px-6 py-5 border-b border-white/5 flex items-center justify-between bg-zinc-950/50">
-              <div className="flex items-center gap-2">
-                <Terminal size={14} className="text-blue-500" />
-                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Kernel Stream</span>
+        {/* Console */}
+        <div className="flex-1 bg-zinc-950 border border-zinc-800 rounded-[32px] flex flex-col overflow-hidden">
+          <div className="p-4 border-b border-zinc-800 bg-zinc-900/20 flex items-center gap-2">
+            <Terminal size={14} className="text-blue-500" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Telemetry Log</span>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4 space-y-2 font-mono text-[10px]">
+            {logs.map(log => (
+              <div key={log.id} className={`flex gap-2 ${log.type === 'error' ? 'text-red-400' : log.type === 'success' ? 'text-green-400' : 'text-zinc-500'}`}>
+                <span className="opacity-30">[{log.time}]</span>
+                <span>{log.text}</span>
               </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-6 space-y-4 font-mono text-[11px] leading-relaxed scrollbar-hide">
-              {logs.length === 0 && (
-                <div className="text-zinc-800 italic">No telemetry data...</div>
-              )}
-              {logs.map(log => (
-                <div key={log.id} className="group animate-in fade-in slide-in-from-bottom-1">
-                  <div className={`flex gap-3 ${
-                    log.type === 'error' ? 'text-red-400' : 
-                    log.type === 'success' ? 'text-emerald-400' : 'text-zinc-500'
-                  }`}>
-                    <span className="opacity-20 shrink-0">[{log.time}]</span>
-                    <span>{log.text}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
+            ))}
           </div>
         </div>
-      </main>
+      </div>
 
-      {/* Setup Modal */}
+      {/* Setup Overlay */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/90 backdrop-blur-xl">
-          <div className="bg-zinc-900 border border-white/10 w-full max-w-2xl rounded-[48px] p-10 relative overflow-hidden">
-            <div className="absolute -top-24 -right-24 w-64 h-64 bg-blue-600/10 blur-[100px] rounded-full" />
-            
-            <button 
-              onClick={() => setShowModal(false)}
-              className="absolute top-8 right-8 text-zinc-500 hover:text-white transition-colors"
-            >
-              <X size={24} />
-            </button>
-
-            <div className="flex items-center gap-4 mb-6">
-              <div className="w-12 h-12 bg-blue-600/20 rounded-2xl flex items-center justify-center border border-blue-500/20">
-                <ShieldAlert className="text-blue-400" size={24} />
-              </div>
-              <h2 className="text-3xl font-black italic uppercase tracking-tighter">Initialize Link</h2>
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-6 z-50">
+          <div className="bg-zinc-900 border border-zinc-800 w-full max-w-lg rounded-[40px] p-8 relative">
+            <button onClick={() => setShowModal(false)} className="absolute top-6 right-6 text-zinc-500 hover:text-white"><X /></button>
+            <h2 className="text-2xl font-black italic uppercase tracking-tighter mb-2">Bridge Protocol</h2>
+            <p className="text-zinc-500 text-xs mb-6">Install this in a <b>ServerScript</b> within Roblox Studio to link the cloud.</p>
+            <div className="bg-black p-4 rounded-2xl font-mono text-[10px] text-blue-400/80 mb-6 h-48 overflow-y-auto relative border border-zinc-800">
+               <pre>{`-- Nexus Ultra Bridge\nlocal ID = "${appId}"\n... (Script is ready)`}</pre>
+               <button onClick={copyScript} className="absolute top-4 right-4 bg-white text-black px-4 py-2 rounded-lg font-bold text-[9px] flex items-center gap-2">
+                  {copied ? <Check size={12} /> : <Copy size={12} />} {copied ? 'COPIED' : 'COPY'}
+               </button>
             </div>
-
-            <p className="text-zinc-400 text-sm mb-8 leading-relaxed max-w-md">
-              Synchronize your Roblox Studio instance with the Nexus Ultra cloud bridge. Use the script below in a <code className="text-blue-400 font-bold bg-blue-500/10 px-1 rounded">ServerScript</code>.
-            </p>
-
-            <div className="bg-black/60 border border-white/5 rounded-3xl p-6 font-mono text-[10px] text-zinc-500 h-64 overflow-y-auto relative">
-              <button 
-                onClick={copyScript}
-                className="absolute top-4 right-4 bg-white/5 hover:bg-white/10 px-4 py-2 rounded-xl border border-white/10 text-white font-bold transition-all flex items-center gap-2 text-[10px]"
-              >
-                {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
-                {copied ? 'COPIED' : 'COPY SCRIPT'}
-              </button>
-              <pre className="whitespace-pre-wrap leading-tight">{`local Http = game:GetService("HttpService")
-local ID = "${appId}"
-... (Full script copied to clipboard)`}</pre>
-            </div>
-
-            <button 
-              onClick={() => setShowModal(false)}
-              className="mt-8 w-full py-5 bg-white text-black rounded-2xl font-black uppercase text-[11px] tracking-[0.2em] hover:bg-blue-600 hover:text-white transition-all shadow-xl"
-            >
-              System Synchronized
-            </button>
+            <button onClick={() => setShowModal(false)} className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-black uppercase text-[10px] tracking-widest transition-all">Link Initialized</button>
           </div>
         </div>
       )}
-
-      <style>{`
-        .scrollbar-hide::-webkit-scrollbar { display: none; }
-        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-        @keyframes gradient {
-          0% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-          100% { background-position: 0% 50%; }
-        }
-        .animate-gradient {
-          background-size: 200% 200%;
-          animation: gradient 3s ease infinite;
-        }
-      `}</style>
     </div>
   );
 };
