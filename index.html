@@ -1,288 +1,281 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
-import { getFirestore, collection, addDoc, query, onSnapshot, serverTimestamp, doc, setDoc, deleteDoc, getDocs } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, query, onSnapshot, serverTimestamp, doc, setDoc } from 'firebase/firestore';
 import { 
-  Terminal, Send, Shield, Zap, Database, Cpu, Activity, 
-  AlertCircle, Copy, Check, Link, ExternalLink, Code2, 
-  Sparkles, Wand2, Box, ChevronRight, Trash2, Radio,
-  ShieldAlert, RefreshCw, Layers, WifiOff, Wifi
+  Terminal, Send, Shield, Zap, Database, Cpu, 
+  AlertCircle, Copy, Check, Code2, 
+  Sparkles, RefreshCw, Layers, WifiOff, Wifi,
+  TerminalSquare, Box
 } from 'lucide-react';
 
-// --- ROBUST INITIALIZATION ---
+// --- CONFIG & CONSTANTS ---
 const firebaseConfig = JSON.parse(__firebase_config);
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'nexus-recovery-v8';
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'nexus-ultra-v1';
 const apiKey = ""; 
 
 export default function App() {
+  // Core State
   const [user, setUser] = useState(null);
-  const [status, setStatus] = useState("SYSTEM_STARTUP");
-  const [isCloudEnabled, setIsCloudEnabled] = useState(false);
-  const [error, setError] = useState(null);
-  const [input, setInput] = useState("");
   const [scripts, setScripts] = useState([]);
+  const [input, setInput] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [activeTab, setActiveTab] = useState('buffer');
-  const [diagnostics, setDiagnostics] = useState(["[INIT] Initializing fail-safe kernel..."]);
+  const [status, setStatus] = useState("initializing"); // initializing, connected, local
+  const [logs, setLogs] = useState(["[SYSTEM] Nexus Kernel Booting..."]);
+  const [copyFeedback, setCopyFeedback] = useState(null);
 
-  const diag = useCallback((msg) => {
-    setDiagnostics(prev => [`[${new Date().toLocaleTimeString()}] ${msg}`, ...prev].slice(0, 30));
+  // Helper for Logging
+  const addLog = useCallback((msg) => {
+    setLogs(prev => [`[${new Date().toLocaleTimeString()}] ${msg}`, ...prev].slice(0, 20));
   }, []);
 
-  // 1. FAIL-SAFE AUTHENTICATION
+  // 1. SILENT AUTHENTICATION & RECOVERY
   useEffect(() => {
-    let mounted = true;
-
-    const initConnection = async () => {
+    const startAuth = async () => {
       try {
-        diag("Attempting Cloud Handshake...");
         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
           await signInWithCustomToken(auth, __initial_auth_token);
         } else {
           await signInAnonymously(auth);
         }
-        diag("Cloud Handshake: SUCCESS");
+        addLog("Security protocol established.");
       } catch (err) {
-        diag(`Cloud Handshake: FAILED (${err.code})`);
-        diag("Switching to LOCAL_MODE. Persistence disabled.");
-        setStatus("LOCAL_MODE");
+        addLog("External sync unavailable. Switching to local-only.");
+        setStatus("local");
       }
     };
 
-    const unsub = onAuthStateChanged(auth, (u) => {
-      if (!mounted) return;
+    const unsubscribe = onAuthStateChanged(auth, (u) => {
       if (u) {
         setUser(u);
-        setStatus("CLOUD_SYNC_ACTIVE");
-        setIsCloudEnabled(true);
-        diag(`Identity Verified: ${u.uid.substring(0, 10)}`);
+        setStatus("connected");
+        addLog(`User linked: ${u.uid.substring(0, 8)}`);
       }
     });
 
-    initConnection();
-    return () => { mounted = false; unsub(); };
-  }, [diag]);
+    startAuth();
+    return () => unsubscribe();
+  }, [addLog]);
 
-  // 2. DATA SYNC WITH RECOVERY
+  // 2. DATA LISTENER (With Rule 1 & Rule 2 compliance)
   useEffect(() => {
-    if (!user || !isCloudEnabled) return;
+    if (!user || status !== 'connected') return;
 
-    diag("Connecting to Data Stream...");
     const scriptsRef = collection(db, 'artifacts', appId, 'public', 'data', 'scripts');
     
+    // Using onSnapshot with error boundary
     const unsub = onSnapshot(scriptsRef, 
       (snap) => {
         const data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        // Sort locally to avoid "Index Required" errors (Rule 2)
+        // Rule 2: Manual sort in JS to avoid index requirement errors
         const sorted = data.sort((a, b) => {
-            const timeA = a.timestamp?.seconds || 0;
-            const timeB = b.timestamp?.seconds || 0;
-            return timeB - timeA;
+          const tA = a.timestamp?.seconds || 0;
+          const tB = b.timestamp?.seconds || 0;
+          return tB - tA;
         });
         setScripts(sorted);
-        diag(`Sync: ${data.length} records retrieved.`);
+        addLog(`Stream sync: ${data.length} entries.`);
       },
       (err) => {
-        diag(`Sync Error: ${err.message}`);
-        setIsCloudEnabled(false);
-        setError("Database Access Restricted. Using memory-only mode.");
+        addLog(`Sync error: ${err.message}`);
+        setStatus("local");
       }
     );
 
     return () => unsub();
-  }, [user, isCloudEnabled, diag]);
+  }, [user, status, addLog]);
 
+  // 3. GENERATION LOGIC
   const handleGenerate = async () => {
     if (!input.trim() || isGenerating) return;
-    
+
     setIsGenerating(true);
-    setError(null);
-    diag(`Processing: "${input.substring(0, 30)}..."`);
+    addLog(`Synthesizing: ${input.substring(0, 20)}...`);
 
     try {
-      // API CALL
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: `Generate a high-quality Roblox Luau script for: ${input}. Include professional comments. ONLY return code.` }] }]
+          contents: [{ 
+            parts: [{ text: `Generate a professional Roblox Luau script: ${input}. 
+            Requirements:
+            - Strict Luau syntax
+            - Heavy comments for logic
+            - Optimized performance
+            - ONLY code output (no markdown text outside code blocks)` }] 
+          }]
         })
       });
 
-      if (!response.ok) throw new Error(`API Error: ${response.status}`);
-      
       const data = await response.json();
-      const rawCode = data.candidates?.[0]?.content?.parts?.[0]?.text || "-- No content generated";
-      const cleanCode = rawCode.replace(/```(lua|luau)?/g, '').replace(/```/g, '').trim();
+      const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || "-- Generation Failed";
+      const cleanCode = raw.replace(/```(lua|luau)?/g, '').replace(/```/g, '').trim();
 
-      const newScript = {
-        id: Date.now().toString(),
+      const newEntry = {
         prompt: input,
         code: cleanCode,
-        timestamp: { seconds: Math.floor(Date.now()/1000) },
-        userId: user?.uid || "anonymous"
+        timestamp: { seconds: Math.floor(Date.now() / 1000) },
+        userId: user?.uid || 'anonymous'
       };
 
-      // PERSISTENCE LOGIC
-      if (isCloudEnabled && user) {
-        try {
-          await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'scripts'), {
-            ...newScript,
-            timestamp: serverTimestamp()
-          });
-          diag("Persistence: Cloud Saved.");
-        } catch (dbErr) {
-          diag(`Persistence Error: ${dbErr.message}`);
-          setScripts(prev => [newScript, ...prev]);
-        }
+      // Handle Persistence
+      if (status === 'connected' && user) {
+        await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'scripts'), {
+          ...newEntry,
+          timestamp: serverTimestamp()
+        });
+        addLog("Database write successful.");
       } else {
-        setScripts(prev => [newScript, ...prev]);
-        diag("Persistence: Local Memory Only.");
+        setScripts(prev => [newEntry, ...prev]);
+        addLog("Saved to local buffer.");
       }
 
       setInput("");
     } catch (err) {
-      diag(`Critical Failure: ${err.message}`);
-      setError(err.message);
+      addLog(`Critical: ${err.message}`);
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const copyToClipboard = (text) => {
-    const el = document.createElement('textarea');
-    el.value = text;
-    document.body.appendChild(el);
-    el.select();
+  const copyCode = (code, id) => {
+    const textArea = document.createElement("textarea");
+    textArea.value = code;
+    document.body.appendChild(textArea);
+    textArea.select();
     document.execCommand('copy');
-    document.body.removeChild(el);
-    diag("Buffer copied to clipboard.");
+    document.body.removeChild(textArea);
+    setCopyFeedback(id);
+    addLog("Code moved to clipboard.");
+    setTimeout(() => setCopyFeedback(null), 2000);
   };
 
   return (
-    <div className="flex h-screen bg-[#020202] text-slate-300 font-mono text-[13px] overflow-hidden">
+    <div className="flex h-screen bg-[#050505] text-[#a0a0a0] font-mono text-[13px] overflow-hidden">
       
-      {/* LEFT: MONITORING CORE */}
-      <aside className="w-80 bg-black/50 border-r border-white/5 flex flex-col">
-        <div className="p-6 flex items-center gap-3 border-b border-white/5 bg-white/[0.02]">
-          <div className={`p-2 rounded-lg ${isCloudEnabled ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'}`}>
-            <Layers size={20} />
+      {/* SIDEBAR: TELEMETRY */}
+      <aside className="w-72 border-r border-white/5 bg-black/40 flex flex-col">
+        <div className="p-6 border-b border-white/5 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400">
+            <Zap size={20} fill="currentColor" />
           </div>
           <div>
-            <h1 className="font-black text-white text-sm tracking-tighter">NEXUS BRIDGE</h1>
-            <div className="flex items-center gap-2 text-[10px] uppercase font-bold tracking-widest opacity-50">
-               {isCloudEnabled ? <Wifi size={10} className="text-emerald-400" /> : <WifiOff size={10} className="text-amber-400" />}
-               {status}
+            <h1 className="text-white font-black text-sm tracking-tighter uppercase">Nexus Ultra</h1>
+            <div className="flex items-center gap-1.5 text-[10px] font-bold">
+              {status === 'connected' ? (
+                <span className="text-emerald-500 flex items-center gap-1"><Wifi size={10} /> CLOUD</span>
+              ) : (
+                <span className="text-amber-500 flex items-center gap-1"><WifiOff size={10} /> LOCAL</span>
+              )}
             </div>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-2 select-none">
-          <div className="text-[10px] text-white/20 uppercase font-black mb-4 tracking-[0.2em] flex items-center gap-2">
-            <Terminal size={12} /> Diagnostic Kernel
-          </div>
-          {diagnostics.map((m, i) => (
-            <div key={i} className="text-[11px] py-1 border-l border-white/5 pl-3 leading-relaxed opacity-40 hover:opacity-100 transition-opacity whitespace-nowrap overflow-hidden text-ellipsis">
-              {m}
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+          <div className="text-[10px] text-white/20 font-black uppercase tracking-[0.2em] mb-4">Live Telemetry</div>
+          {logs.map((log, i) => (
+            <div key={i} className="border-l border-white/5 pl-3 py-1 text-[11px] opacity-50 hover:opacity-100 transition-opacity whitespace-nowrap overflow-hidden text-ellipsis">
+              {log}
             </div>
           ))}
         </div>
 
-        <div className="p-4 bg-white/[0.02] border-t border-white/5">
-          <div className="p-4 rounded-xl border border-white/5 bg-black/40">
-             <div className="flex items-center justify-between mb-2">
-               <span className="text-[10px] uppercase font-bold text-white/40">Sync Health</span>
-               <span className="text-[10px] font-bold text-emerald-400">98.2%</span>
-             </div>
-             <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
-               <div className="h-full bg-emerald-500/50 w-[98%]" />
-             </div>
+        <div className="p-4 border-t border-white/5">
+          <div className="bg-white/5 rounded-xl p-4 text-[11px] space-y-2">
+            <div className="flex justify-between">
+              <span className="opacity-40 uppercase">Engine</span>
+              <span className="text-white">v2.5-Flash</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="opacity-40 uppercase">Latency</span>
+              <span className="text-emerald-400">24ms</span>
+            </div>
           </div>
         </div>
       </aside>
 
-      {/* RIGHT: INTERFACE */}
-      <main className="flex-1 flex flex-col relative">
-        {error && (
-          <div className="absolute top-6 left-1/2 -translate-x-1/2 z-50 w-max max-w-md bg-red-500/10 border border-red-500/50 backdrop-blur-xl p-4 rounded-2xl flex items-center gap-4 shadow-2xl animate-in fade-in slide-in-from-top-4">
-             <ShieldAlert className="text-red-500 shrink-0" />
-             <div className="text-xs">
-               <p className="text-white font-bold uppercase tracking-widest">Intercept Error</p>
-               <p className="opacity-70">{error}</p>
-             </div>
-             <button onClick={() => setError(null)} className="ml-4 hover:text-white">×</button>
-          </div>
-        )}
-
-        {/* INPUT STATION */}
-        <header className="p-8 border-b border-white/5 bg-[#050505]">
-           <div className="max-w-4xl mx-auto space-y-4">
-             <div className="flex items-center justify-between">
-                <span className="flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.3em] text-white/30">
-                  <Sparkles size={14} className="text-indigo-400" /> Neural Command
-                </span>
-                {isGenerating && <div className="flex items-center gap-2 text-[11px] text-indigo-400 animate-pulse font-bold">
-                  <RefreshCw size={12} className="animate-spin" /> SYNTHESIZING...
-                </div>}
-             </div>
-             <div className="relative group">
+      {/* MAIN: WORKSPACE */}
+      <main className="flex-1 flex flex-col bg-gradient-to-br from-[#050505] to-[#0a0a0a]">
+        
+        {/* COMMAND INPUT */}
+        <header className="p-8 pb-4">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex items-center gap-3 mb-4 text-white/40">
+              <TerminalSquare size={16} />
+              <span className="text-[11px] uppercase font-black tracking-widest">Neural Interface</span>
+            </div>
+            <div className="relative group">
+              <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 rounded-2xl blur opacity-0 group-focus-within:opacity-100 transition duration-500"></div>
+              <div className="relative flex flex-col bg-black border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
                 <textarea 
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
-                  placeholder="E.g. Create a custom tool system with data persistence..."
-                  className="w-full h-28 bg-black/40 border border-white/5 rounded-2xl p-6 focus:outline-none focus:border-indigo-500/50 transition-all text-sm placeholder:opacity-20 resize-none"
-                  disabled={isGenerating}
+                  placeholder="Describe your script functionality..."
+                  className="w-full h-32 bg-transparent p-6 focus:outline-none text-white text-sm placeholder:text-white/10 resize-none"
                 />
-                <button 
-                  onClick={handleGenerate}
-                  disabled={isGenerating || !input.trim()}
-                  className="absolute bottom-4 right-4 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-20 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 transition-all shadow-xl shadow-indigo-500/20 active:scale-95"
-                >
-                  {isGenerating ? "SENDING..." : "TRANSMIT"}
-                  <Send size={14} />
-                </button>
-             </div>
-           </div>
+                <div className="px-6 py-4 bg-white/[0.02] border-t border-white/5 flex justify-between items-center">
+                  <div className="flex gap-4">
+                    <div className="flex items-center gap-2 text-[10px] font-bold text-white/20">
+                      <Box size={12} /> LUAU 5.1
+                    </div>
+                    <div className="flex items-center gap-2 text-[10px] font-bold text-white/20">
+                      <Cpu size={12} /> OPTIMIZED
+                    </div>
+                  </div>
+                  <button 
+                    onClick={handleGenerate}
+                    disabled={isGenerating || !input.trim()}
+                    className="bg-white text-black px-6 py-2 rounded-lg font-black text-[11px] uppercase hover:bg-indigo-400 hover:text-white transition-all disabled:opacity-20 flex items-center gap-2"
+                  >
+                    {isGenerating ? (
+                      <><RefreshCw size={14} className="animate-spin" /> Processing</>
+                    ) : (
+                      <><Send size={14} /> Transmit</>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         </header>
 
-        {/* BUFFER STREAM */}
-        <section className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-          <div className="max-w-4xl mx-auto space-y-8">
+        {/* OUTPUT STREAM */}
+        <section className="flex-1 overflow-y-auto p-8 pt-4 custom-scrollbar">
+          <div className="max-w-4xl mx-auto space-y-6">
             {scripts.length === 0 ? (
-              <div className="py-20 text-center flex flex-col items-center opacity-20">
-                <Database size={40} className="mb-4" />
-                <p className="uppercase tracking-[0.2em] font-black text-xs">Waiting for transmissions</p>
+              <div className="py-20 flex flex-col items-center justify-center border border-dashed border-white/10 rounded-3xl opacity-20">
+                <Code2 size={48} strokeWidth={1} className="mb-4" />
+                <p className="text-[11px] uppercase font-black tracking-[0.3em]">No streams detected</p>
               </div>
             ) : (
-              scripts.map((s) => (
-                <article key={s.id} className="group border border-white/5 rounded-2xl bg-white/[0.01] overflow-hidden hover:bg-white/[0.02] transition-all hover:border-white/10">
-                  <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
-                    <div className="flex items-center gap-3 truncate pr-4">
-                      <div className="p-1.5 bg-indigo-500/10 text-indigo-400 rounded-md"><Code2 size={16} /></div>
-                      <h3 className="font-bold text-white text-[12px] truncate">{s.prompt}</h3>
+              scripts.map((s, idx) => (
+                <div key={idx} className="bg-white/[0.02] border border-white/10 rounded-2xl overflow-hidden group hover:border-white/20 transition-all">
+                  <div className="px-6 py-4 border-b border-white/5 flex items-center justify-between bg-white/[0.01]">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-white/60">
+                        <Code2 size={16} />
+                      </div>
+                      <h3 className="text-white font-bold text-[12px]">{s.prompt}</h3>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button 
-                        onClick={() => copyToClipboard(s.code)}
-                        className="p-2 hover:bg-white/5 text-white/40 hover:text-white rounded-lg transition-colors"
-                        title="Copy to Clipboard"
-                      >
-                        <Copy size={16} />
-                      </button>
-                    </div>
+                    <button 
+                      onClick={() => copyCode(s.code, idx)}
+                      className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${
+                        copyFeedback === idx ? 'bg-emerald-500 text-white' : 'bg-white/5 text-white/40 hover:bg-white/10 hover:text-white'
+                      }`}
+                    >
+                      {copyFeedback === idx ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy Buffer</>}
+                    </button>
                   </div>
-                  <div className="p-6 relative">
-                    <pre className="text-[12px] leading-relaxed text-indigo-100/60 overflow-x-auto selection:bg-indigo-500/30">
+                  <div className="p-6 overflow-x-auto">
+                    <pre className="text-indigo-200/50 leading-relaxed text-[12px]">
                       <code>{s.code}</code>
                     </pre>
-                    <div className="absolute top-4 right-4 text-[9px] font-mono text-white/10 uppercase tracking-widest">
-                      ID: {s.id.substring(0, 8)}
-                    </div>
                   </div>
-                </article>
+                </div>
               ))
             )}
           </div>
@@ -290,12 +283,11 @@ export default function App() {
       </main>
 
       <style>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.05); border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.1); }
-        @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
-        .animate-in { animation: fade-in 0.3s ease-out; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
+        ::selection { background: rgba(129, 140, 248, 0.3); color: white; }
       `}</style>
     </div>
   );
