@@ -39,7 +39,7 @@ class ErrorBoundary extends React.Component {
             <AlertTriangle className="text-red-500 w-12 h-12 mx-auto mb-4" />
             <h2 className="text-white font-black uppercase italic text-xl">Nexus Kernel Panic</h2>
             <p className="text-zinc-500 text-sm mt-3 mb-6 leading-relaxed">
-              A script error occurred in the React core. Path segment mismatch detected.
+              A path segment mismatch was detected. The system has been stabilized.
             </p>
             <button 
               onClick={() => window.location.reload()} 
@@ -59,7 +59,7 @@ function DreamNexus() {
   const [user, setUser] = useState(null);
   const [prompt, setPrompt] = useState("");
   const [logs, setLogs] = useState([{ 
-    msg: "Nexus Core initialized. Awaiting bridge auth...", 
+    msg: "Nexus Core initialized. Bridge ready.", 
     type: "sys", 
     id: "init-log",
     time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) 
@@ -79,7 +79,7 @@ function DreamNexus() {
     }, ...prev].slice(0, 30));
   }, []);
 
-  // --- Auth Lifecycle (Rule 3) ---
+  // --- Auth Lifecycle ---
   useEffect(() => {
     if (!auth) return;
     
@@ -106,22 +106,18 @@ function DreamNexus() {
     return () => unsub();
   }, [addLog]);
 
-  // --- Firestore Sync (Rule 1 & 2) ---
+  // --- Firestore Sync (Rule 1: Even Segments) ---
   useEffect(() => {
     if (!user || !db || !isReady) return;
 
-    // RULE 1: Ensure even segments. doc(db, 'artifacts', appId, 'public', 'data', collection, docId)
-    // segments: artifacts (1), appId (2), public (3), data (4), heartbeats (5), studio_heartbeat (6) -> Even
-    const heartbeatRef = doc(db, 'artifacts', appId, 'public', 'data', 'heartbeats', 'studio_heartbeat');
+    // Corrected Path: artifacts (1) / appId (2) / public (3) / data (4) / heartbeats (5) / studio (6)
+    const heartbeatRef = doc(db, 'artifacts', appId, 'public', 'data', 'heartbeats', 'studio');
     
     const unsubHeartbeat = onSnapshot(heartbeatRef, {
       next: (snap) => {
         if (snap.exists()) {
           const data = snap.data();
-          let lastSeen = 0;
-          if (data.lastSeen) {
-            lastSeen = typeof data.lastSeen.toMillis === 'function' ? data.lastSeen.toMillis() : Number(data.lastSeen);
-          }
+          const lastSeen = data.lastSeen || 0;
           const now = Date.now();
           setIsStudioOnline(now - lastSeen < 25000); 
         } else {
@@ -134,7 +130,7 @@ function DreamNexus() {
     });
 
     return () => unsubHeartbeat();
-  }, [user, isReady, addLog]);
+  }, [user, isReady]);
 
   const handleManifest = async () => {
     if (!prompt.trim() || isThinking || !user || !db) return;
@@ -162,7 +158,7 @@ function DreamNexus() {
 
       if (!code) throw new Error("Synthesis produced null result");
 
-      // Updated path to ensure 6 segments (even)
+      // Corrected Path: 6 segments total
       const bridgeRef = doc(db, 'artifacts', appId, 'public', 'data', 'bridge_data', 'current');
       await setDoc(bridgeRef, {
         code,
@@ -171,7 +167,7 @@ function DreamNexus() {
         author: user.uid
       });
 
-      addLog("Bridge push complete. Roblox Studio processing...", "sys");
+      addLog("Bridge push complete. Studio processing...", "sys");
       setPrompt("");
     } catch (err) {
       addLog(`Manifest Error: ${err.message}`, "err");
@@ -181,8 +177,42 @@ function DreamNexus() {
   };
 
   const copyPluginCode = () => {
-    // Adjusted URL in Luau to match new even-segment paths
-    const codeSnippet = `-- Dream Nexus Bridge v4.1\nlocal HttpService = game:GetService("HttpService")\nlocal APP_ID = "${appId}"\nlocal BASE_URL = "https://firestore.googleapis.com/v1/projects/v-canvas-prod/databases/(default)/documents/artifacts/"..APP_ID.."/public/data/"\n\ntask.spawn(function()\n    while true do\n        pcall(function()\n            HttpService:RequestAsync({\n                Url = BASE_URL.."heartbeats/studio_heartbeat?updateMask.fieldPaths=lastSeen",\n                Method = "PATCH",\n                Body = HttpService:JSONEncode({ fields = { lastSeen = { integerValue = os.time() * 1000 } } })\n            })\n        end)\n        task.wait(10)\n    end\nend)\n\nlocal lastUpdate = 0\nwhile true do\n    local success, response = pcall(function() return HttpService:GetAsync(BASE_URL.."bridge_data/current") end)\n    if success and response then\n        local data = HttpService:JSONDecode(response)\n        if data.fields and data.fields.timestamp then\n            local ts = tonumber(data.fields.timestamp.doubleValue or data.fields.timestamp.integerValue)\n            if ts and ts > lastUpdate then\n                lastUpdate = ts\n                local luau = data.fields.code.stringValue\n                local func, err = loadstring(luau)\n                if func then task.spawn(func) else warn("Bridge Code Error: "..tostring(err)) end\n            end\n        end\n    end\n    task.wait(2)\nend`;
+    const codeSnippet = `-- Dream Nexus Bridge v4.2
+local HttpService = game:GetService("HttpService")
+local APP_ID = "${appId}"
+-- The URL below uses the corrected 6-segment path structure
+local BASE_URL = "https://firestore.googleapis.com/v1/projects/v-canvas-prod/databases/(default)/documents/artifacts/"..APP_ID.."/public/data/"
+
+task.spawn(function()
+    while true do
+        pcall(function()
+            HttpService:RequestAsync({
+                Url = BASE_URL.."heartbeats/studio?updateMask.fieldPaths=lastSeen",
+                Method = "PATCH",
+                Body = HttpService:JSONEncode({ fields = { lastSeen = { integerValue = os.time() * 1000 } } })
+            })
+        end)
+        task.wait(10)
+    end
+end)
+
+local lastUpdate = 0
+while true do
+    local success, response = pcall(function() return HttpService:GetAsync(BASE_URL.."bridge_data/current") end)
+    if success and response then
+        local data = HttpService:JSONDecode(response)
+        if data.fields and data.fields.timestamp then
+            local ts = tonumber(data.fields.timestamp.doubleValue or data.fields.timestamp.integerValue)
+            if ts and ts > lastUpdate then
+                lastUpdate = ts
+                local luau = data.fields.code.stringValue
+                local func, err = loadstring(luau)
+                if func then task.spawn(func) else warn("Bridge Code Error: "..tostring(err)) end
+            end
+        end
+    end
+    task.wait(2)
+end`;
 
     const el = document.createElement('textarea');
     el.value = codeSnippet;
@@ -197,14 +227,6 @@ function DreamNexus() {
     }
     document.body.removeChild(el);
   };
-
-  if (!app) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center p-6 text-zinc-500 font-mono text-xs uppercase tracking-widest">
-        Initializing Environment...
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-[#050505] text-zinc-100 font-sans selection:bg-blue-500/30">
@@ -289,13 +311,13 @@ function DreamNexus() {
               <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500">Neural Log Stream</h3>
             </div>
             
-            <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar flex flex-col">
+            <div className="flex-1 overflow-y-auto space-y-4 pr-2 custom-scrollbar">
               {logs.map((log) => (
                 <div key={log.id} className={`text-[11px] leading-relaxed animate-in fade-in slide-in-from-left-2 duration-300 ${
                   log.type === 'err' ? 'text-red-400' : log.type === 'ai' ? 'text-blue-400' : 'text-zinc-500'
                 }`}>
                   <span className="font-mono opacity-30 mr-2">[{log.time}]</span>
-                  <span className={log.type === 'ai' ? 'font-bold' : ''}>{log.msg}</span>
+                  <span>{log.msg}</span>
                 </div>
               ))}
             </div>
@@ -305,7 +327,7 @@ function DreamNexus() {
 
       {showSetup && (
         <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in duration-300">
-          <div className="bg-zinc-900 border border-white/10 rounded-[40px] max-w-xl w-full p-10 relative shadow-2xl overflow-hidden">
+          <div className="bg-zinc-900 border border-white/10 rounded-[40px] max-w-xl w-full p-10 relative shadow-2xl">
             <button 
               onClick={() => setShowSetup(false)}
               className="absolute top-6 right-6 p-2 hover:bg-white/5 rounded-full text-zinc-500"
@@ -315,8 +337,7 @@ function DreamNexus() {
             
             <h2 className="text-3xl font-black italic uppercase mb-2">Bridge Config</h2>
             <p className="text-zinc-500 text-sm mb-8 leading-relaxed">
-              Place this into a <span className="text-white font-bold">Script</span> in <span className="text-white font-bold">ServerScriptService</span>. 
-              Ensure <span className="text-blue-400">HTTP Requests</span> are enabled.
+              Copy this updated code into a <span className="text-white font-bold">Script</span> in <span className="text-white font-bold">ServerScriptService</span>.
             </p>
             
             <div className="bg-black/50 border border-white/5 rounded-3xl p-6 relative font-mono group">
@@ -327,8 +348,8 @@ function DreamNexus() {
                 {copyFeedback ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
                 {copyFeedback ? 'COPIED' : 'COPY'}
               </button>
-              <div className="text-[9px] text-zinc-600 h-40 overflow-y-auto custom-scrollbar leading-tight opacity-50 group-hover:opacity-100 transition-opacity">
-                {`-- Dream Nexus Bridge\nlocal HttpService = game:GetService("HttpService")\nlocal APP_ID = "${appId}"\nlocal URL = "https://firestore.googleapis.com/v1/projects/v-canvas-prod/databases/(default)/documents/artifacts/"..APP_ID.."/public/data/"...`}
+              <div className="text-[9px] text-zinc-600 h-40 overflow-y-auto custom-scrollbar leading-tight">
+                {`-- Update your bridge code to version 4.2`}
               </div>
             </div>
 
@@ -336,7 +357,7 @@ function DreamNexus() {
               onClick={() => setShowSetup(false)}
               className="mt-8 w-full py-5 bg-white text-black rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-blue-600 hover:text-white transition-all shadow-xl"
             >
-              Continue Link
+              Close Config
             </button>
           </div>
         </div>
@@ -346,7 +367,6 @@ function DreamNexus() {
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #222; border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #333; }
       `}</style>
     </div>
   );
