@@ -1,244 +1,289 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
-import { getFirestore, collection, addDoc, query, onSnapshot, serverTimestamp, doc, setDoc, deleteDoc, getDocs } from 'firebase/firestore';
+import { getFirestore, collection, addDoc, query, onSnapshot, serverTimestamp, doc, setDoc, deleteDoc, getDocs, limit } from 'firebase/firestore';
 import { 
   Terminal, Send, Shield, Zap, Database, Cpu, Activity, 
   AlertCircle, Copy, Check, Link, ExternalLink, Code2, 
-  Sparkles, Wand2, Volume2, ShieldCheck, Info, Box,
-  ChevronRight, Trash2, Radio
+  Sparkles, Wand2, Box, ChevronRight, Trash2, Radio,
+  ShieldAlert, RefreshCw
 } from 'lucide-react';
 
-// --- CONFIGURATION ---
+// --- ROBUST INITIALIZATION ---
 const firebaseConfig = JSON.parse(__firebase_config);
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'nexus-bridge-v6';
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'nexus-bridge-v7';
 const apiKey = ""; 
 
 export default function App() {
   const [user, setUser] = useState(null);
-  const [status, setStatus] = useState("OFFLINE");
+  const [authStatus, setAuthStatus] = useState("INITIALIZING");
+  const [error, setError] = useState(null);
   const [input, setInput] = useState("");
   const [logs, setLogs] = useState([]);
   const [queue, setQueue] = useState([]);
   const [isBusy, setIsBusy] = useState(false);
-  const [systemLogs, setSystemLogs] = useState(["[SYS] Link Established..."]);
-  const [copiedId, setCopiedId] = useState(null);
   const [view, setView] = useState('buffer'); 
-  const [audioUrl, setAudioUrl] = useState(null);
+  const [systemLogs, setSystemLogs] = useState(["[SYS] Core systems online..."]);
 
-  const addSysLog = (msg) => {
-    setSystemLogs(prev => [`[${new Date().toLocaleTimeString()}] ${msg}`, ...prev].slice(0, 15));
-  };
+  const addSysLog = useCallback((msg) => {
+    setSystemLogs(prev => [`[${new Date().toLocaleTimeString()}] ${msg}`, ...prev].slice(0, 20));
+  }, []);
 
+  // 1. HARDENED AUTHENTICATION
   useEffect(() => {
-    const initAuth = async () => {
+    let isMounted = true;
+
+    const startAuth = async () => {
       try {
+        setAuthStatus("AUTHENTICATING...");
         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
           await signInWithCustomToken(auth, __initial_auth_token);
         } else {
           await signInAnonymously(auth);
         }
       } catch (err) {
-        addSysLog(`AUTH ERROR: ${err.message}`);
+        if (isMounted) {
+          setAuthStatus("AUTH_FAILED");
+          setError(err.message);
+          addSysLog(`CRITICAL AUTH ERROR: ${err.message}`);
+        }
       }
     };
 
-    initAuth();
     const unsubscribe = onAuthStateChanged(auth, (currUser) => {
-      if (currUser) {
-        setUser(currUser);
-        setStatus("CONNECTED");
-        addSysLog(`BRIDGE ACTIVE: ${appId}`);
+      if (isMounted) {
+        if (currUser) {
+          setUser(currUser);
+          setAuthStatus("CONNECTED");
+          setError(null);
+          addSysLog(`LINK ESTABLISHED: UID ${currUser.uid.substring(0,8)}...`);
+        } else {
+          setUser(null);
+          setAuthStatus("DISCONNECTED");
+        }
       }
     });
-    return () => unsubscribe();
-  }, []);
 
-  // Sync Script Buffer and Live Deployment Queue
+    startAuth();
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, [addSysLog]);
+
+  // 2. DATA SYNC (With Error Guards)
   useEffect(() => {
     if (!user) return;
     
-    // 1. Script History
-    const qScripts = collection(db, 'artifacts', appId, 'public', 'data', 'scripts');
-    const unsubScripts = onSnapshot(qScripts, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setLogs(data.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0)));
-    }, (err) => addSysLog(`SYNC ERR: ${err.message}`));
+    // Scripts Listener
+    const scriptsRef = collection(db, 'artifacts', appId, 'public', 'data', 'scripts');
+    const unsubScripts = onSnapshot(scriptsRef, 
+      (snapshot) => {
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // Manual sort to avoid Rule 2 index requirements
+        setLogs(data.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0)));
+      }, 
+      (err) => {
+        addSysLog(`DATA ERROR (Scripts): ${err.message}`);
+        setError(`Firestore Sync Error: ${err.message}`);
+      }
+    );
 
-    // 2. Active Studio Queue
-    const qQueue = collection(db, 'artifacts', appId, 'public', 'data', 'deployment_queue');
-    const unsubQueue = onSnapshot(qQueue, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setQueue(data);
-    }, (err) => addSysLog(`QUEUE ERR: ${err.message}`));
+    // Queue Listener
+    const queueRef = collection(db, 'artifacts', appId, 'public', 'data', 'deployment_queue');
+    const unsubQueue = onSnapshot(queueRef, 
+      (snapshot) => {
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setQueue(data);
+      }, 
+      (err) => addSysLog(`DATA ERROR (Queue): ${err.message}`)
+    );
 
     return () => {
       unsubScripts();
       unsubQueue();
     };
-  }, [user]);
-
-  // ✨ Gemini AI: Optimize
-  const optimizeRequest = async () => {
-    if (!input.trim() || isBusy) return;
-    setIsBusy(true);
-    addSysLog("✨ Gemini: Refactoring request...");
-    try {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: `Convert this Roblox request into a highly specific technical prompt for a Luau code generator. Output only the prompt: "${input}"` }] }]
-        })
-      });
-      const data = await res.json();
-      const optimized = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-      if (optimized) setInput(optimized);
-      addSysLog("✨ Prompt optimized.");
-    } catch (err) {
-      addSysLog("✨ Optimization failed.");
-    } finally {
-      setIsBusy(false);
-    }
-  };
-
-  // 🚀 Studio Deployment Logic
-  const pushToStudio = async (logEntry) => {
-    if (!user) return;
-    addSysLog(`Pushing "${logEntry.prompt.substring(0, 15)}..." to Studio...`);
-    try {
-      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'deployment_queue'), {
-        type: "script",
-        name: `NexusGen_${Math.floor(Math.random() * 1000)}`,
-        content: logEntry.code,
-        status: "pending",
-        timestamp: serverTimestamp()
-      });
-      addSysLog("Instruction queued for Plugin.");
-    } catch (err) {
-      addSysLog("Deployment failed.");
-    }
-  };
+  }, [user, addSysLog]);
 
   const handleGenerate = async () => {
     if (!input.trim() || isBusy || !user) return;
     setIsBusy(true);
-    addSysLog("Processing AI Request...");
+    setError(null);
+    addSysLog("Initiating Gemini-2.5-Flash processing...");
 
     try {
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: `Generate a robust Roblox Luau script for: ${input}. Provide ONLY code.` }] }]
+          contents: [{ parts: [{ text: `Generate a robust Roblox Luau script for: ${input}. Provide ONLY the code block, no explanations.` }] }]
         })
       });
 
+      if (!res.ok) throw new Error(`API returned ${res.status}`);
+
       const result = await res.json();
-      const code = result.candidates?.[0]?.content?.parts?.[0]?.text?.replace(/```(lua|luau)?/g, '').replace(/```/g, '').trim() || "-- Error";
+      const code = result.candidates?.[0]?.content?.parts?.[0]?.text
+        ?.replace(/```(lua|luau)?/g, '')
+        ?.replace(/```/g, '')
+        ?.trim() || "-- Error: Empty response";
 
       await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'scripts'), {
         prompt: input,
         code: code,
-        timestamp: serverTimestamp()
+        timestamp: serverTimestamp(),
+        userId: user.uid
       });
 
       setInput("");
-      addSysLog("Script generated and cached.");
+      addSysLog("Generation complete. Cached in cloud.");
     } catch (err) {
-      addSysLog(`API ERROR: ${err.message}`);
+      addSysLog(`GENERATION FAILED: ${err.message}`);
+      setError(`Generation failed: ${err.message}`);
     } finally {
       setIsBusy(false);
     }
   };
 
+  const pushToStudio = async (logEntry) => {
+    if (!user) return;
+    addSysLog("Pushing remote instruction to deployment_queue...");
+    try {
+      await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'deployment_queue'), {
+        type: "script",
+        name: `NexusPush_${Date.now()}`,
+        content: logEntry.code,
+        status: "pending",
+        timestamp: serverTimestamp(),
+        pushedBy: user.uid
+      });
+      addSysLog("Studio instruction broadcasted.");
+    } catch (err) {
+      addSysLog(`DEPLOYMENT FAILED: ${err.message}`);
+    }
+  };
+
   const clearQueue = async () => {
-    const q = collection(db, 'artifacts', appId, 'public', 'data', 'deployment_queue');
-    const snap = await getDocs(q);
-    snap.forEach(async (d) => await deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'deployment_queue', d.id)));
-    addSysLog("Queue cleared.");
+    try {
+      addSysLog("Purging deployment queue...");
+      const q = collection(db, 'artifacts', appId, 'public', 'data', 'deployment_queue');
+      const snap = await getDocs(q);
+      const deletions = snap.docs.map(d => deleteDoc(doc(db, 'artifacts', appId, 'public', 'data', 'deployment_queue', d.id)));
+      await Promise.all(deletions);
+      addSysLog("Queue cleared.");
+    } catch (err) {
+      addSysLog(`CLEAR FAILED: ${err.message}`);
+    }
   };
 
   return (
-    <div className="flex h-screen bg-[#020202] text-[#00ffcc] font-mono overflow-hidden">
-      {/* SIDEBAR */}
-      <div className="w-72 border-r border-[#00ffcc]/10 flex flex-col bg-[#080808]">
-        <div className="p-4 border-b border-[#00ffcc]/10 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Radio size={16} className="animate-pulse text-red-500" />
-            <h2 className="text-[10px] font-black tracking-[0.2em] uppercase">Nexus Live</h2>
+    <div className="flex h-screen bg-[#050505] text-[#00ffcc] font-mono overflow-hidden">
+      {/* ERROR OVERLAY */}
+      {error && (
+        <div className="absolute top-4 right-4 z-50 bg-red-900/90 border border-red-500 text-white p-4 rounded-lg shadow-2xl flex items-center gap-3 animate-bounce">
+          <ShieldAlert size={20} />
+          <div className="text-xs">
+            <p className="font-bold">SYSTEM ALERT</p>
+            <p className="opacity-80">{error}</p>
           </div>
-          <div className={`text-[8px] px-2 py-0.5 rounded border ${status === 'CONNECTED' ? 'border-green-500/50 text-green-500' : 'border-red-500/50 text-red-500'}`}>
-            {status}
+          <button onClick={() => setError(null)} className="ml-4 opacity-50 hover:opacity-100">×</button>
+        </div>
+      )}
+
+      {/* SIDEBAR: System Monitor */}
+      <div className="w-80 border-r border-[#00ffcc]/10 flex flex-col bg-[#0a0a0a]">
+        <div className="p-6 border-b border-[#00ffcc]/10">
+          <div className="flex items-center gap-3 mb-2">
+            <div className={`w-2 h-2 rounded-full animate-pulse ${authStatus === 'CONNECTED' ? 'bg-[#00ffcc]' : 'bg-red-500'}`} />
+            <h1 className="text-xs font-black tracking-[0.3em] uppercase">Nexus v7.1</h1>
           </div>
+          <p className="text-[10px] opacity-40 uppercase tracking-widest">{authStatus}</p>
         </div>
         
-        <div className="flex-1 p-4 overflow-y-auto space-y-2 text-[9px] opacity-40">
-          {systemLogs.map((log, i) => <div key={i} className="border-l border-[#00ffcc]/20 pl-2">{log}</div>)}
+        <div className="flex-1 p-4 overflow-y-auto space-y-2">
+          <div className="text-[9px] text-[#00ffcc]/20 uppercase mb-4 tracking-widest flex items-center gap-2">
+            <Terminal size={10} /> System Diagnostics
+          </div>
+          {systemLogs.map((log, i) => (
+            <div key={i} className="text-[10px] leading-relaxed border-l border-[#00ffcc]/10 pl-3 opacity-60 hover:opacity-100 transition-opacity">
+              {log}
+            </div>
+          ))}
         </div>
 
-        <div className="p-3 border-t border-[#00ffcc]/10 space-y-1">
-          <button onClick={() => setView('buffer')} className={`w-full text-left p-2.5 rounded text-[10px] flex items-center gap-2 transition-all ${view === 'buffer' ? 'bg-[#00ffcc]/10 text-[#00ffcc] border border-[#00ffcc]/20' : 'opacity-40 hover:opacity-100'}`}>
-            <Database size={12} /> SCRIPT BUFFER
-          </button>
-          <button onClick={() => setView('queue')} className={`w-full text-left p-2.5 rounded text-[10px] flex items-center gap-2 transition-all ${view === 'queue' ? 'bg-[#00ffcc]/10 text-[#00ffcc] border border-[#00ffcc]/20' : 'opacity-40 hover:opacity-100'}`}>
-            <Box size={12} /> STUDIO QUEUE ({queue.length})
-          </button>
+        <div className="p-4 border-t border-[#00ffcc]/10 bg-black/40">
+          <nav className="space-y-2">
+            <button 
+              onClick={() => setView('buffer')} 
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded text-[10px] transition-all ${view === 'buffer' ? 'bg-[#00ffcc]/10 text-[#00ffcc] border border-[#00ffcc]/30 shadow-[0_0_10px_rgba(0,255,204,0.1)]' : 'opacity-40 hover:opacity-100'}`}
+            >
+              <Database size={14} /> SCRIPT BUFFER
+            </button>
+            <button 
+              onClick={() => setView('queue')} 
+              className={`w-full flex items-center justify-between px-4 py-3 rounded text-[10px] transition-all ${view === 'queue' ? 'bg-[#00ffcc]/10 text-[#00ffcc] border border-[#00ffcc]/30' : 'opacity-40 hover:opacity-100'}`}
+            >
+              <div className="flex items-center gap-3"><Box size={14} /> STUDIO QUEUE</div>
+              {queue.length > 0 && <span className="bg-[#00ffcc] text-black px-1.5 rounded-sm font-bold text-[8px]">{queue.length}</span>}
+            </button>
+          </nav>
         </div>
       </div>
 
-      {/* MAIN */}
-      <div className="flex-1 flex flex-col relative overflow-hidden bg-[radial-gradient(circle_at_center,_#0a0a0a_0%,_#020202_100%)]">
-        <div className="p-8 border-b border-[#00ffcc]/10 bg-black/40 backdrop-blur-md">
-          <div className="max-w-4xl mx-auto">
+      {/* MAIN: Control Panel */}
+      <div className="flex-1 flex flex-col bg-[radial-gradient(circle_at_top_right,_#0c0c0c_0%,_#050505_100%)]">
+        {/* Header/Input */}
+        <div className="p-8 border-b border-[#00ffcc]/10 bg-black/20 backdrop-blur-sm">
+          <div className="max-w-4xl mx-auto relative">
             <div className="flex items-center justify-between mb-4">
-              <span className="text-[10px] uppercase tracking-widest text-[#00ffcc]/40 flex items-center gap-2">
-                <Sparkles size={12} /> Neural Link Processor
+              <span className="text-[10px] uppercase font-bold text-[#00ffcc]/40 flex items-center gap-2">
+                <Sparkles size={12} className="text-[#00ffcc]" /> Neural Command Input
               </span>
-              <button onClick={optimizeRequest} disabled={!input || isBusy} className="text-[9px] font-bold text-black bg-[#00ffcc] px-3 py-1 rounded-sm hover:brightness-125 disabled:opacity-20 transition-all">
-                ✨ OPTIMIZE PROMPT
-              </button>
+              {isBusy && <Activity size={14} className="animate-spin text-[#00ffcc]" />}
             </div>
-            <div className="relative group">
-              <textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Request a script or model structure..."
-                className="w-full h-32 bg-black/60 border border-[#00ffcc]/20 rounded-lg p-5 text-sm focus:outline-none focus:border-[#00ffcc]/60 transition-all placeholder:opacity-20"
-              />
-              <button
-                onClick={handleGenerate}
-                disabled={isBusy || !user}
-                className="absolute bottom-4 right-4 bg-[#00ffcc] text-black px-6 py-2.5 rounded font-black text-[10px] flex items-center gap-2 hover:shadow-[0_0_15px_#00ffcc] disabled:opacity-20 transition-all"
-              >
-                {isBusy ? <Activity size={14} className="animate-spin" /> : <Zap size={14} />}
-                PROCESS & CACHE
-              </button>
-            </div>
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Describe a function (e.g., 'A round system with voting and intermissions')"
+              className="w-full h-32 bg-black border border-[#00ffcc]/20 rounded-xl p-6 text-sm focus:outline-none focus:border-[#00ffcc]/60 transition-all placeholder:text-[#00ffcc]/10"
+              disabled={isBusy}
+            />
+            <button
+              onClick={handleGenerate}
+              disabled={isBusy || !user || !input.trim()}
+              className="absolute bottom-6 right-6 bg-[#00ffcc] text-black px-8 py-3 rounded-lg font-black text-[11px] flex items-center gap-3 hover:scale-105 active:scale-95 disabled:opacity-20 transition-all shadow-[0_0_20px_rgba(0,255,204,0.2)]"
+            >
+              {isBusy ? "PROCESSING..." : "TRANSMIT"}
+              <Zap size={14} fill="currentColor" />
+            </button>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-8">
+        {/* Content View */}
+        <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
           <div className="max-w-4xl mx-auto">
             {view === 'buffer' ? (
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 gap-6">
+                {logs.length === 0 && (
+                  <div className="py-20 text-center border-2 border-dashed border-[#00ffcc]/5 rounded-2xl opacity-20 text-xs uppercase tracking-widest">
+                    No scripts cached in buffer
+                  </div>
+                )}
                 {logs.map((log) => (
-                  <div key={log.id} className="border border-[#00ffcc]/10 rounded-lg bg-[#080808] hover:border-[#00ffcc]/30 transition-all overflow-hidden">
-                    <div className="px-4 py-2 bg-[#111] flex justify-between items-center border-b border-[#00ffcc]/5">
-                      <div className="text-[10px] font-bold text-white truncate max-w-[60%]">{log.prompt}</div>
-                      <div className="flex gap-2">
-                        <button 
-                          onClick={() => pushToStudio(log)}
-                          className="flex items-center gap-1.5 text-[9px] font-bold bg-[#00ffcc] text-black px-3 py-1 rounded hover:scale-105 transition-transform"
-                        >
-                          <ChevronRight size={12} /> PUSH TO STUDIO
-                        </button>
-                      </div>
+                  <div key={log.id} className="group border border-[#00ffcc]/10 rounded-xl bg-black/40 overflow-hidden hover:border-[#00ffcc]/40 transition-all">
+                    <div className="px-6 py-4 bg-white/5 flex justify-between items-center">
+                      <div className="text-[11px] font-bold text-[#00ffcc]/80 truncate flex-1 mr-4">{log.prompt}</div>
+                      <button 
+                        onClick={() => pushToStudio(log)}
+                        className="flex items-center gap-2 text-[10px] font-black bg-[#00ffcc] text-black px-4 py-1.5 rounded-md hover:brightness-110 active:scale-95 transition-all"
+                      >
+                        <ChevronRight size={14} /> DEPLOY TO STUDIO
+                      </button>
                     </div>
-                    <div className="p-4 bg-black/40 text-[11px] leading-relaxed opacity-80 whitespace-pre overflow-x-auto">
+                    <div className="p-6 text-[12px] font-mono leading-relaxed text-white/70 whitespace-pre overflow-x-auto bg-[#020202]">
                       {log.code}
                     </div>
                   </div>
@@ -247,28 +292,36 @@ export default function App() {
             ) : (
               <div className="space-y-4">
                 <div className="flex justify-between items-center mb-6">
-                  <h3 className="text-xs font-bold uppercase tracking-widest flex items-center gap-2">
-                    <Box size={14} /> Active Studio Queue
+                  <h3 className="text-xs font-black uppercase tracking-widest flex items-center gap-3">
+                    <Box size={16} /> Studio Deployment Stream
                   </h3>
-                  <button onClick={clearQueue} className="text-[9px] border border-red-500/30 text-red-500 px-3 py-1 rounded hover:bg-red-500/10">
-                    <Trash2 size={12} className="inline mr-1" /> CLEAR QUEUE
+                  <button 
+                    onClick={clearQueue} 
+                    className="text-[10px] border border-red-500/40 text-red-400 px-4 py-1.5 rounded-md hover:bg-red-500/10 transition-colors"
+                  >
+                    <Trash2 size={12} className="inline mr-2" /> PURGE STREAM
                   </button>
                 </div>
                 {queue.length === 0 && (
-                   <div className="text-center py-20 opacity-20 text-xs">No pending instructions for Studio.</div>
+                   <div className="text-center py-20 opacity-10 text-xs">AWAITING REMOTE INSTRUCTIONS...</div>
                 )}
                 {queue.map((item) => (
-                  <div key={item.id} className="flex items-center justify-between p-4 bg-[#111] border border-[#00ffcc]/10 rounded-lg">
+                  <div key={item.id} className="flex items-center justify-between p-5 bg-[#0a0a0a] border border-[#00ffcc]/5 rounded-xl">
                     <div className="flex items-center gap-4">
-                      <div className="p-2 bg-[#00ffcc]/10 rounded text-[#00ffcc]"><Cpu size={16} /></div>
+                      <div className="p-3 bg-[#00ffcc]/5 rounded-lg text-[#00ffcc]"><Cpu size={18} /></div>
                       <div>
-                        <div className="text-[11px] font-bold text-white">{item.name}</div>
-                        <div className="text-[9px] opacity-40 uppercase">{item.type} • {item.status}</div>
+                        <div className="text-[12px] font-bold text-white mb-1">{item.name}</div>
+                        <div className="text-[9px] opacity-40 uppercase tracking-tighter">
+                          TYPE: {item.type} • ID: {item.id.substring(0,12)}
+                        </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                       <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse" />
-                       <span className="text-[9px] uppercase font-bold text-yellow-500">Awaiting Plugin</span>
+                    <div className="flex flex-col items-end gap-1">
+                       <div className="flex items-center gap-2">
+                         <div className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
+                         <span className="text-[10px] uppercase font-bold text-yellow-400">PENDING PLUGIN PICKUP</span>
+                       </div>
+                       <span className="text-[8px] opacity-20 uppercase font-mono">BROADCASTING...</span>
                     </div>
                   </div>
                 ))}
@@ -277,6 +330,13 @@ export default function App() {
           </div>
         </div>
       </div>
+      
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #00ffcc22; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #00ffcc44; }
+      `}</style>
     </div>
   );
 }
