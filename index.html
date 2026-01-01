@@ -2,174 +2,125 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Sovereign Bryyce: Guilds & Glory</title>
+    <title>Sovereign Bryyce: Kingdom Ruler</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@900&family=Oswald:wght@500;700&display=swap');
-        
-        body, html { margin: 0; padding: 0; background: #05070a; color: white; font-family: 'Oswald', sans-serif; overflow: hidden; }
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@900&family=Oswald:wght@400;700&display=swap');
+        body, html { margin: 0; padding: 0; background: #000; color: white; font-family: 'Oswald', sans-serif; overflow: hidden; height: 100%; width: 100%; }
         .royal { font-family: 'Cinzel', serif; }
 
-        /* THE CITY MAP */
-        #city-map {
-            width: 100vw; height: 100vh;
-            background: url('https://i.imgur.com/8T8C9po.jpeg') center no-repeat;
-            background-size: cover; position: relative;
+        /* THE WORLD */
+        #viewport { width: 100vw; height: 100vh; cursor: grab; overflow: hidden; position: relative; }
+        #world-map { width: 4000px; height: 4000px; background: #1a1a1a; position: absolute; transform: translate(-1850px, -1850px); }
+
+        /* EMPEROR UI */
+        .emperor-panel {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.95);
+            z-index: 10000; display: none; padding: 60px;
         }
+        .active-emp { display: flex !important; flex-direction: column; }
 
-        /* WORLD CHAT OVERLAY */
-        #world-chat {
-            position: fixed; bottom: 100px; left: 20px; width: 380px; height: 200px;
-            background: rgba(0,0,0,0.75); border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; z-index: 500;
+        .title-card {
+            background: #111; border: 1px solid #333; padding: 20px; border-radius: 12px;
+            transition: 0.3s; text-align: center;
         }
-        .chat-msg { padding: 4px 10px; font-size: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .title-card:hover { border-color: #ffd700; transform: translateY(-5px); }
 
-        /* INTERACTIVE ASSETS */
-        .building { position: absolute; cursor: pointer; transition: 0.3s; display: flex; flex-direction: column; align-items: center; }
-        .building:hover { transform: scale(1.1); filter: brightness(1.2); }
-        .label { background: rgba(0,0,0,0.9); border: 1px solid #ffd700; padding: 2px 8px; border-radius: 4px; font-size: 10px; color: #ffd700; margin-top: -10px; }
-
-        /* MODALS */
-        .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.98); z-index: 2000; display: none; padding: 40px; }
-        .active-ui { display: flex !important; flex-direction: column; }
-
-        /* LEADERBOARD TABLE */
-        table { width: 100%; border-collapse: collapse; }
-        th { text-align: left; color: #666; font-size: 12px; border-bottom: 1px solid #333; padding: 10px; }
-        td { padding: 15px 10px; border-bottom: 1px solid #222; }
-        .rank-1 { color: #ffd700; font-weight: 900; }
+        /* ANIMATIONS */
+        .crown-glow { animation: glow 2s infinite alternate; }
+        @keyframes glow { from { filter: drop-shadow(0 0 5px gold); } to { filter: drop-shadow(0 0 30px gold); } }
     </style>
 </head>
 <body>
 
-    <div class="fixed top-0 w-full z-[1000] p-4 flex justify-between bg-gradient-to-b from-black/80 to-transparent">
-        <div class="flex items-center gap-4 bg-black/60 p-2 rounded-xl border border-white/10">
-            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=BryyceTitan" class="w-14 h-14 rounded-lg border-2 border-yellow-500">
+    <div id="viewport">
+        <div id="world-map">
+            <div class="absolute" style="top: 1950px; left: 1950px; width: 150px; text-align: center;">
+                <img src="https://cdn-icons-png.flaticon.com/512/3021/3021703.png" class="w-full crown-glow cursor-pointer" onclick="openEmperorMenu()">
+                <div class="bg-yellow-600 text-black font-black text-xs px-2 py-1 rounded">THE ZENITH</div>
+            </div>
+            <div id="player-castle" class="absolute z-30" style="top: 2200px; left: 2200px;">
+                <img src="https://cdn-icons-png.flaticon.com/512/3021/3021703.png" class="w-20 border-2 border-cyan-500 rounded-lg">
+                <p class="text-center text-[10px] bg-black/80">BRYYCE [SKY]</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="emp-panel" class="emperor-panel">
+        <div class="flex justify-between items-center mb-10 border-b border-yellow-500 pb-5">
             <div>
-                <p class="royal text-white text-lg leading-none">LORD BRYYCE</p>
-                <p class="text-yellow-500 text-xs font-black">GUILD: <span class="text-white">[SKY] Skyborn</span></p>
-                <p class="text-[10px] text-cyan-400">MIGHT: <span id="might-val">185.2M</span></p>
+                <h1 class="royal text-6xl text-yellow-500">THRONE ROOM</h1>
+                <p class="text-gray-400">Current Overlord: <span class="text-white font-bold">Lord Bryyce</span></p>
+            </div>
+            <button onclick="closeEmperorMenu()" class="text-6xl">&times;</button>
+        </div>
+
+        <div class="grid grid-cols-4 gap-6">
+            <div class="title-card border-green-900">
+                <h3 class="text-green-500 font-bold">QUEEN</h3>
+                <p class="text-xs text-gray-500 my-2">+15% Construction Speed</p>
+                <button onclick="assignTitle('Queen')" class="bg-green-700 w-full py-1 rounded text-xs">ASSIGN</button>
+            </div>
+            <div class="title-card border-green-900">
+                <h3 class="text-green-500 font-bold">GENERAL</h3>
+                <p class="text-xs text-gray-500 my-2">+10% Army Attack</p>
+                <button onclick="assignTitle('General')" class="bg-green-700 w-full py-1 rounded text-xs">ASSIGN</button>
+            </div>
+
+            <div class="title-card border-red-900">
+                <h3 class="text-red-600 font-bold">FOOL</h3>
+                <p class="text-xs text-gray-500 my-2">-20% Resource Production</p>
+                <button onclick="assignTitle('Fool')" class="bg-red-800 w-full py-1 rounded text-xs">PUNISH</button>
+            </div>
+            <div class="title-card border-red-900">
+                <h3 class="text-red-600 font-bold">THIEF</h3>
+                <p class="text-xs text-gray-500 my-2">-15% Defense</p>
+                <button onclick="assignTitle('Thief')" class="bg-red-800 w-full py-1 rounded text-xs">PUNISH</button>
             </div>
         </div>
-        <div class="flex gap-4">
-            <button onclick="openUI('leaderboard')" class="bg-zinc-800 px-4 py-2 rounded-lg border border-white/20 hover:bg-zinc-700 transition">🏆 RANKINGS</button>
-            <div class="bg-black/90 px-6 py-2 rounded-lg border-b-2 border-cyan-500 text-cyan-400 font-bold">💎 <span id="gem-val">520,000</span></div>
+
+        <div class="mt-10 bg-zinc-900 p-8 rounded-2xl">
+            <h2 class="royal text-2xl text-yellow-500 mb-4">KINGDOM DECREE</h2>
+            <input type="text" id="decree-in" placeholder="Set the law of the land..." class="w-full bg-black border border-yellow-900 p-4 text-white rounded">
+            <button onclick="setDecree()" class="mt-4 bg-yellow-600 text-black font-black px-10 py-3 rounded">PUBLISH DECREE</button>
         </div>
     </div>
 
-    <div id="world-chat">
-        <div class="bg-zinc-900 px-3 py-1 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Kingdom Chat #442</div>
-        <div id="chat-content" class="flex-1 overflow-y-auto p-2"></div>
-        <div class="p-2 bg-black/50 border-t border-white/10 flex gap-2">
-            <input type="text" id="chat-input" placeholder="Type to chat..." class="bg-transparent text-xs w-full outline-none">
-            <button onclick="sendMsg()" class="text-yellow-500 text-xs font-bold">SEND</button>
-        </div>
-    </div>
-
-    <div id="city-map">
-        <div class="building w-48 top-[25%] left-[15%]" onclick="openUI('guild')">
-            <img src="https://cdn-icons-png.flaticon.com/512/3069/3069512.png">
-            <div class="label">GUILD HALL</div>
-        </div>
-        <div class="building w-64 top-[35%] left-[42%]" onclick="alert('Citadel Secure')">
-            <img src="https://cdn-icons-png.flaticon.com/512/3021/3021703.png">
-            <div class="label">LORD'S KEEP</div>
-        </div>
-        <div class="building w-32 top-[60%] left-[70%]" onclick="alert('Shop Opening...')">
-            <img src="https://cdn-icons-png.flaticon.com/512/3593/3593452.png">
-            <div class="label text-pink-500">MALL</div>
-        </div>
-    </div>
-
-    <div id="ui-leaderboard" class="overlay">
-        <div class="flex justify-between items-center mb-10">
-            <h2 class="royal text-4xl text-yellow-500">GLOBAL RANKINGS</h2>
-            <button onclick="closeUI('leaderboard')" class="text-5xl">&times;</button>
-        </div>
-        <div class="flex gap-4 mb-6">
-            <button class="bg-yellow-600 text-black px-6 py-2 rounded font-bold">PLAYER MIGHT</button>
-            <button class="bg-zinc-800 px-6 py-2 rounded font-bold">GUILD MIGHT</button>
-        </div>
-        <div class="overflow-y-auto flex-1">
-            <table>
-                <thead>
-                    <tr><th>RANK</th><th>PLAYER</th><th>GUILD</th><th>MIGHT</th></tr>
-                </thead>
-                <tbody id="leader-table">
-                    </tbody>
-            </table>
-        </div>
-    </div>
-
-    <div id="ui-guild" class="overlay">
-        <div class="flex justify-between items-center mb-10">
-            <h2 class="royal text-4xl text-blue-400">GUILD MANAGEMENT</h2>
-            <button onclick="closeUI('guild')" class="text-5xl">&times;</button>
-        </div>
-        <div class="grid grid-cols-2 gap-10">
-            <div class="bg-zinc-900 p-8 rounded-2xl border border-blue-500/30">
-                <h3 class="text-2xl font-bold mb-4">[SKY] Skyborn</h3>
-                <p class="text-gray-400 mb-6 italic">"To the heavens and beyond! We rule the sky."</p>
-                <div class="space-y-2">
-                    <p class="flex justify-between"><span>Leader:</span> <span class="text-yellow-500 font-bold">Bryyce</span></p>
-                    <p class="flex justify-between"><span>Members:</span> <span>98/100</span></p>
-                    <p class="flex justify-between"><span>Gift Level:</span> <span class="text-green-400">25</span></p>
-                </div>
-            </div>
-            <div class="bg-zinc-900 p-8 rounded-2xl border border-white/5">
-                <h3 class="text-xl font-bold mb-4">GUILD ACTIONS</h3>
-                <button class="w-full bg-blue-600 py-3 rounded-lg mb-4 font-bold">SEND GUILD HELP</button>
-                <button class="w-full bg-zinc-800 py-3 rounded-lg font-bold">VIEW ALLIANCE MEMBERS</button>
-            </div>
-        </div>
+    <div class="fixed top-6 right-6 z-[500] pointer-events-auto">
+        <button onclick="openEmperorMenu()" class="bg-yellow-600 p-4 rounded-full shadow-2xl border-4 border-yellow-400">
+            <img src="https://cdn-icons-png.flaticon.com/512/2353/2353361.png" class="w-10">
+        </button>
     </div>
 
     <script>
-        // --- CHAT ENGINE ---
-        const aiPlayers = ["VikingLord", "ShadowKing", "QueenRage", "DragonSlayer", "FarmerJoe"];
-        const aiMessages = ["Rally on the Wonder!", "Any guilds recruiting?", "Just hit 200M Might!", "Trading wood for gold.", "Help me with research!"];
-        
-        function addChat(user, msg, color = "white") {
-            const chat = document.getElementById('chat-content');
-            const div = document.createElement('div');
-            div.className = "chat-msg";
-            div.innerHTML = `<span class="text-yellow-500 font-bold">[K442] ${user}:</span> <span style="color:${color}">${msg}</span>`;
-            chat.appendChild(div);
-            chat.scrollTop = chat.scrollHeight;
+        const map = document.getElementById('world-map');
+        let scrollX = -1850, scrollY = -1850;
+        let isDragging = false, startX, startY;
+
+        window.addEventListener('mousedown', (e) => { 
+            if(e.target.closest('button') || e.target.closest('input')) return;
+            isDragging = true; startX = e.pageX - scrollX; startY = e.pageY - scrollY; 
+        });
+        window.addEventListener('mousemove', (e) => {
+            if(!isDragging) return;
+            scrollX = e.pageX - startX; scrollY = e.pageY - startY;
+            map.style.transform = `translate(${scrollX}px, ${scrollY}px)`;
+        });
+        window.addEventListener('mouseup', () => isDragging = false);
+
+        function openEmperorMenu() { document.getElementById('emp-panel').classList.add('active-emp'); }
+        function closeEmperorMenu() { document.getElementById('emp-panel').classList.remove('active-emp'); }
+
+        function assignTitle(title) {
+            const player = prompt("Enter Player Name to receive the title of " + title + ":");
+            if(player) alert(player + " has been branded as the " + title + " of Kingdom #442!");
         }
 
-        setInterval(() => {
-            const p = aiPlayers[Math.floor(Math.random() * aiPlayers.length)];
-            const m = aiMessages[Math.floor(Math.random() * aiMessages.messages?.length || 5)];
-            addChat(p, m);
-        }, 4000);
-
-        function sendMsg() {
-            const input = document.getElementById('chat-input');
-            if(input.value) { addChat("Bryyce", input.value, "#00ffcc"); input.value = ""; }
+        function setDecree() {
+            const msg = document.getElementById('decree-in').value;
+            alert("WORLD BROADCAST: " + msg);
+            closeEmperorMenu();
         }
-
-        // --- LEADERBOARD ENGINE ---
-        const leaders = [
-            { rank: 1, name: "Bryyce", guild: "SKY", might: "185.2M" },
-            { rank: 2, name: "GodZilla", guild: "REX", might: "172.1M" },
-            { rank: 3, name: "X-Man", guild: "SKY", might: "165.9M" },
-            { rank: 4, name: "TheGhost", guild: "VOID", might: "140.2M" },
-            { rank: 5, name: "Lulu77", guild: "MEOW", might: "138.0M" }
-        ];
-
-        function loadLeaders() {
-            const table = document.getElementById('leader-table');
-            leaders.forEach(l => {
-                table.innerHTML += `<tr><td class="${l.rank==1?'rank-1':''}">${l.rank}</td><td>${l.name}</td><td>[${l.guild}]</td><td>${l.might}</td></tr>`;
-            });
-        }
-
-        function openUI(id) { document.getElementById('ui-' + id).classList.add('active-ui'); }
-        function closeUI(id) { document.getElementById('ui-' + id).classList.remove('active-ui'); }
-
-        window.onload = loadLeaders;
     </script>
 </body>
 </html>
