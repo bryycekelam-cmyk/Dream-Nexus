@@ -2,124 +2,183 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Sovereign Bryyce: Kingdom Ruler</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Sovereign Bryyce: System Recheck</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@900&family=Oswald:wght@400;700&display=swap');
+        
         body, html { margin: 0; padding: 0; background: #000; color: white; font-family: 'Oswald', sans-serif; overflow: hidden; height: 100%; width: 100%; }
         .royal { font-family: 'Cinzel', serif; }
 
-        /* THE WORLD */
-        #viewport { width: 100vw; height: 100vh; cursor: grab; overflow: hidden; position: relative; }
-        #world-map { width: 4000px; height: 4000px; background: #1a1a1a; position: absolute; transform: translate(-1850px, -1850px); }
-
-        /* EMPEROR UI */
-        .emperor-panel {
-            position: fixed; inset: 0; background: rgba(0,0,0,0.95);
-            z-index: 10000; display: none; padding: 60px;
+        /* VIEWPORT: The window into the world */
+        #viewport { width: 100vw; height: 100vh; position: relative; overflow: hidden; background: #050505; }
+        
+        /* THE MAP: The actual game world */
+        #world-map { 
+            width: 4000px; height: 4000px; 
+            background-color: #0d1117;
+            background-image: 
+                radial-gradient(circle, rgba(255,255,255,0.05) 1px, transparent 1px),
+                linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px);
+            background-size: 100px 100px, 50px 50px, 50px 50px;
+            position: absolute; top: 0; left: 0; will-change: transform;
         }
-        .active-emp { display: flex !important; flex-direction: column; }
 
-        .title-card {
-            background: #111; border: 1px solid #333; padding: 20px; border-radius: 12px;
-            transition: 0.3s; text-align: center;
+        /* ENTITIES */
+        .map-obj { position: absolute; z-index: 10; cursor: pointer; transition: filter 0.2s; pointer-events: auto; }
+        .map-obj:hover { filter: drop-shadow(0 0 15px #ffd700) brightness(1.2); }
+        .tag { background: rgba(0,0,0,0.8); border: 1px solid #444; color: #fff; padding: 2px 6px; border-radius: 4px; font-size: 10px; white-space: nowrap; margin-top: 5px; text-align: center; }
+
+        /* UI OVERLAY */
+        #ui-layer { position: fixed; inset: 0; z-index: 1000; pointer-events: none; }
+        .clickable { pointer-events: auto; }
+
+        /* MODALS */
+        .modal { 
+            position: fixed; inset: 0; background: rgba(0,0,0,0.92); 
+            z-index: 2000; display: none; align-items: center; justify-content: center; pointer-events: auto;
         }
-        .title-card:hover { border-color: #ffd700; transform: translateY(-5px); }
-
-        /* ANIMATIONS */
-        .crown-glow { animation: glow 2s infinite alternate; }
-        @keyframes glow { from { filter: drop-shadow(0 0 5px gold); } to { filter: drop-shadow(0 0 30px gold); } }
+        .active-modal { display: flex; }
     </style>
 </head>
 <body>
 
     <div id="viewport">
         <div id="world-map">
-            <div class="absolute" style="top: 1950px; left: 1950px; width: 150px; text-align: center;">
-                <img src="https://cdn-icons-png.flaticon.com/512/3021/3021703.png" class="w-full crown-glow cursor-pointer" onclick="openEmperorMenu()">
-                <div class="bg-yellow-600 text-black font-black text-xs px-2 py-1 rounded">THE ZENITH</div>
+            <div class="map-obj flex flex-col items-center" style="top: 1950px; left: 1950px;" onclick="interact('zenith')">
+                <img src="https://cdn-icons-png.flaticon.com/512/3021/3021703.png" class="w-32 animate-pulse">
+                <div class="tag border-yellow-500 text-yellow-500 font-bold uppercase">The World Zenith</div>
             </div>
-            <div id="player-castle" class="absolute z-30" style="top: 2200px; left: 2200px;">
-                <img src="https://cdn-icons-png.flaticon.com/512/3021/3021703.png" class="w-20 border-2 border-cyan-500 rounded-lg">
-                <p class="text-center text-[10px] bg-black/80">BRYYCE [SKY]</p>
+
+            <div id="player-castle" class="map-obj flex flex-col items-center" style="top: 2200px; left: 2200px;" onclick="interact('my-castle')">
+                <img src="https://cdn-icons-png.flaticon.com/512/3021/3021703.png" class="w-20 border border-cyan-500 rounded p-1 bg-cyan-900/20">
+                <div class="tag text-cyan-400">BRYYCE [SKY]</div>
             </div>
         </div>
     </div>
 
-    <div id="emp-panel" class="emperor-panel">
-        <div class="flex justify-between items-center mb-10 border-b border-yellow-500 pb-5">
-            <div>
-                <h1 class="royal text-6xl text-yellow-500">THRONE ROOM</h1>
-                <p class="text-gray-400">Current Overlord: <span class="text-white font-bold">Lord Bryyce</span></p>
+    <div id="ui-layer">
+        <div class="flex justify-between p-4">
+            <div class="bg-black/80 p-3 border-l-4 border-yellow-500 clickable">
+                <p class="royal text-lg">EMPEROR BRYYCE</p>
+                <p class="text-xs text-yellow-500 font-bold">POWER: 185.2M</p>
             </div>
-            <button onclick="closeEmperorMenu()" class="text-6xl">&times;</button>
-        </div>
-
-        <div class="grid grid-cols-4 gap-6">
-            <div class="title-card border-green-900">
-                <h3 class="text-green-500 font-bold">QUEEN</h3>
-                <p class="text-xs text-gray-500 my-2">+15% Construction Speed</p>
-                <button onclick="assignTitle('Queen')" class="bg-green-700 w-full py-1 rounded text-xs">ASSIGN</button>
-            </div>
-            <div class="title-card border-green-900">
-                <h3 class="text-green-500 font-bold">GENERAL</h3>
-                <p class="text-xs text-gray-500 my-2">+10% Army Attack</p>
-                <button onclick="assignTitle('General')" class="bg-green-700 w-full py-1 rounded text-xs">ASSIGN</button>
-            </div>
-
-            <div class="title-card border-red-900">
-                <h3 class="text-red-600 font-bold">FOOL</h3>
-                <p class="text-xs text-gray-500 my-2">-20% Resource Production</p>
-                <button onclick="assignTitle('Fool')" class="bg-red-800 w-full py-1 rounded text-xs">PUNISH</button>
-            </div>
-            <div class="title-card border-red-900">
-                <h3 class="text-red-600 font-bold">THIEF</h3>
-                <p class="text-xs text-gray-500 my-2">-15% Defense</p>
-                <button onclick="assignTitle('Thief')" class="bg-red-800 w-full py-1 rounded text-xs">PUNISH</button>
+            <div class="flex items-center gap-4">
+                <div class="bg-black/90 px-4 py-2 border border-white/10 text-cyan-400 font-bold clickable">💎 520,000</div>
+                <button onclick="toggleModal('mall')" class="bg-yellow-600 px-6 py-2 rounded font-black text-xs clickable">STORE</button>
             </div>
         </div>
 
-        <div class="mt-10 bg-zinc-900 p-8 rounded-2xl">
-            <h2 class="royal text-2xl text-yellow-500 mb-4">KINGDOM DECREE</h2>
-            <input type="text" id="decree-in" placeholder="Set the law of the land..." class="w-full bg-black border border-yellow-900 p-4 text-white rounded">
-            <button onclick="setDecree()" class="mt-4 bg-yellow-600 text-black font-black px-10 py-3 rounded">PUBLISH DECREE</button>
+        <div class="absolute bottom-6 left-6 flex items-end gap-4">
+            <div class="bg-black/90 p-3 border border-white/20 rounded-xl clickable">
+                <p class="text-[10px] text-gray-500 uppercase">Current Sector</p>
+                <p class="text-yellow-500 font-bold font-mono">X: <span id="pos-x">2200</span> Y: <span id="pos-y">2200</span></p>
+            </div>
+            <div class="bg-black/90 p-3 border border-white/20 rounded-xl flex gap-2 clickable">
+                <input id="jump-x" type="number" placeholder="X" class="w-16 bg-zinc-800 p-1 text-center text-xs">
+                <input id="jump-y" type="number" placeholder="Y" class="w-16 bg-zinc-800 p-1 text-center text-xs">
+                <button onclick="teleport()" class="bg-blue-600 px-4 py-1 rounded text-[10px] font-bold">WARP</button>
+            </div>
         </div>
     </div>
 
-    <div class="fixed top-6 right-6 z-[500] pointer-events-auto">
-        <button onclick="openEmperorMenu()" class="bg-yellow-600 p-4 rounded-full shadow-2xl border-4 border-yellow-400">
-            <img src="https://cdn-icons-png.flaticon.com/512/2353/2353361.png" class="w-10">
-        </button>
+    <div id="modal-mall" class="modal" onclick="closeAll(event)">
+        <div class="bg-zinc-900 w-full max-w-2xl p-10 border-2 border-yellow-500 rounded-3xl" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center mb-8">
+                <h2 class="royal text-4xl text-yellow-500">Imperial Store</h2>
+                <button onclick="toggleModal('mall')" class="text-4xl">&times;</button>
+            </div>
+            <div class="bg-black/50 p-6 rounded-xl border border-white/10 text-center">
+                <p class="text-gray-400 mb-2">Claim Daily Tribute</p>
+                <h3 class="text-3xl font-bold text-white mb-4">1,000 GEMS</h3>
+                <button onclick="alert('Collected!')" class="bg-yellow-600 text-black px-10 py-3 rounded-full font-black">CLAIM FREE</button>
+            </div>
+        </div>
     </div>
 
     <script>
         const map = document.getElementById('world-map');
-        let scrollX = -1850, scrollY = -1850;
-        let isDragging = false, startX, startY;
+        const castle = document.getElementById('player-castle');
+        
+        // Panning Variables
+        let isDragging = false;
+        let startX, startY;
+        let currentTranslateX = -1800; // Starting camera view
+        let currentTranslateY = -1800;
+        let isUIOpen = false;
 
-        window.addEventListener('mousedown', (e) => { 
-            if(e.target.closest('button') || e.target.closest('input')) return;
-            isDragging = true; startX = e.pageX - scrollX; startY = e.pageY - scrollY; 
+        // Initialize Map Position
+        map.style.transform = `translate(${currentTranslateX}px, ${currentTranslateY}px)`;
+
+        // --- MAP DRAGGING SYSTEM ---
+        window.addEventListener('mousedown', (e) => {
+            if (isUIOpen || e.target.closest('.clickable')) return;
+            isDragging = true;
+            startX = e.clientX - currentTranslateX;
+            startY = e.clientY - currentTranslateY;
+            map.style.transition = "none"; // Disable transition for smooth dragging
         });
+
         window.addEventListener('mousemove', (e) => {
-            if(!isDragging) return;
-            scrollX = e.pageX - startX; scrollY = e.pageY - startY;
-            map.style.transform = `translate(${scrollX}px, ${scrollY}px)`;
+            if (!isDragging || isUIOpen) return;
+            currentTranslateX = e.clientX - startX;
+            currentTranslateY = e.clientY - startY;
+
+            // Constrain Map Bounds
+            const minX = -(4000 - window.innerWidth);
+            const minY = -(4000 - window.innerHeight);
+            currentTranslateX = Math.min(0, Math.max(currentTranslateX, minX));
+            currentTranslateY = Math.min(0, Math.max(currentTranslateY, minY));
+
+            map.style.transform = `translate(${currentTranslateX}px, ${currentTranslateY}px)`;
+            
+            // Update HUD Coords (Absolute Center of Screen)
+            document.getElementById('pos-x').innerText = Math.abs(Math.round(currentTranslateX - (window.innerWidth/2)));
+            document.getElementById('pos-y').innerText = Math.abs(Math.round(currentTranslateY - (window.innerHeight/2)));
         });
-        window.addEventListener('mouseup', () => isDragging = false);
 
-        function openEmperorMenu() { document.getElementById('emp-panel').classList.add('active-emp'); }
-        function closeEmperorMenu() { document.getElementById('emp-panel').classList.remove('active-emp'); }
+        window.addEventListener('mouseup', () => { isDragging = false; });
 
-        function assignTitle(title) {
-            const player = prompt("Enter Player Name to receive the title of " + title + ":");
-            if(player) alert(player + " has been branded as the " + title + " of Kingdom #442!");
+        // --- TELEPORT SYSTEM ---
+        function teleport() {
+            const tx = document.getElementById('jump-x').value;
+            const ty = document.getElementById('jump-y').value;
+            if(!tx || !ty) return;
+
+            // Move Castle
+            castle.style.left = tx + "px";
+            castle.style.top = ty + "px";
+
+            // Snap Camera to new location
+            currentTranslateX = -(tx - (window.innerWidth/2));
+            currentTranslateY = -(ty - (window.innerHeight/2));
+            
+            map.style.transition = "transform 0.8s cubic-bezier(0.2, 0, 0.2, 1)";
+            map.style.transform = `translate(${currentTranslateX}px, ${currentTranslateY}px)`;
+            
+            alert(`Warped to X:${tx} Y:${ty}`);
         }
 
-        function setDecree() {
-            const msg = document.getElementById('decree-in').value;
-            alert("WORLD BROADCAST: " + msg);
-            closeEmperorMenu();
+        // --- INTERACTION & UI ---
+        function interact(type) {
+            if(isDragging) return; // Prevent clicking while dragging
+            if(type === 'zenith') alert("You are inspecting the Imperial Zenith.");
+            if(type === 'my-castle') alert("Welcome home, Lord Bryyce.");
+        }
+
+        function toggleModal(id) {
+            const m = document.getElementById('modal-' + id);
+            m.classList.toggle('active-modal');
+            isUIOpen = m.classList.contains('active-modal');
+        }
+
+        function closeAll(e) {
+            if(e.target.classList.contains('modal')) {
+                e.target.classList.remove('active-modal');
+                isUIOpen = false;
+            }
         }
     </script>
 </body>
