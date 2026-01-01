@@ -3,388 +3,206 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sovereign Bryyce: Total War</title>
+    <title>Sovereign Bryyce: Triple Crown</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Roboto:wght@900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Oswald:wght@700&display=swap');
         
         :root {
             --gold: #ffd700;
-            --panel-bg: rgba(18, 12, 8, 0.98);
-            --mana-blue: #00d2ff;
+            --royal-red: #8b0000;
+            --throne-purple: #4b0082;
         }
 
-        body { 
-            background: #000; color: white; font-family: 'Roboto', sans-serif; 
-            overflow: hidden; margin: 0; user-select: none;
-        }
-
+        body { background: #000; color: white; font-family: 'Oswald', sans-serif; overflow: hidden; margin: 0; user-select: none; }
         .royal { font-family: 'Cinzel', serif; }
 
-        /* LORDS MOBILE SPECIFIC UI */
-        .header-slanted {
-            clip-path: polygon(0 0, 100% 0, 96% 100%, 4% 100%);
-            background: linear-gradient(180deg, #5c4033 0%, #2c1e16 100%);
+        /* SCENE MANAGEMENT */
+        .scene { position: absolute; inset: 0; transition: opacity 0.8s ease, transform 0.8s ease; }
+        .hidden-scene { opacity: 0; pointer-events: none; transform: scale(1.1); }
+
+        /* 3D CASTLE INTERIOR (THRONE ROOM) */
+        #throne-room {
+            background: linear-gradient(to bottom, #1a0f00 0%, #4b0082 100%);
+            display: flex; justify-content: center; align-items: center;
+        }
+        .pillar {
+            width: 60px; height: 100%;
+            background: linear-gradient(90deg, #222, #444, #222);
+            box-shadow: 0 0 50px rgba(0,0,0,0.9);
+        }
+        .throne {
+            filter: drop-shadow(0 0 30px var(--gold));
+            animation: throne-glow 3s infinite alternate;
+        }
+        @keyframes throne-glow { from { filter: drop-shadow(0 0 20px gold); } to { filter: drop-shadow(0 0 60px gold); } }
+
+        /* CITY VIEW (3D CASTLE IMAGE) */
+        .castle-container {
+            perspective: 1000px;
+        }
+        .castle-3d {
+            transform: rotateX(10deg);
+            filter: drop-shadow(0 50px 30px rgba(0,0,0,0.5));
+            transition: transform 0.5s;
+        }
+        .castle-3d:hover { transform: rotateX(20deg) scale(1.05); }
+
+        /* SHOP UI */
+        #shop-modal { background: rgba(0,0,0,0.95); backdrop-blur: 20px; }
+        .shop-card {
+            background: linear-gradient(135deg, #2c1e16 0%, #1a0f00 100%);
             border: 2px solid var(--gold);
-            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+            transition: transform 0.2s;
         }
+        .shop-card:hover { transform: translateY(-5px); border-color: #fff; }
 
-        .rss-bar {
+        /* HEADERS */
+        .slanted-tab {
             clip-path: polygon(10% 0, 100% 0, 90% 100%, 0 100%);
-            background: rgba(0,0,0,0.85);
-            border: 1px solid rgba(255,215,0,0.3);
+            background: rgba(0,0,0,0.8);
+            border-left: 3px solid var(--gold);
         }
-
-        /* MAP ENGINE */
-        #viewport { perspective: 1500px; width: 100vw; height: 100vh; }
-        #map {
-            width: 6000px; height: 6000px;
-            background: #1b261b url('https://www.transparenttextures.com/patterns/dark-matter.png');
-            transition: transform 1.2s cubic-bezier(0.1, 0.9, 0.2, 1);
-        }
-
-        /* COMBAT & ULTIMATES */
-        @keyframes screen-shake {
-            0% { transform: translate(1px, 1px) rotate(0deg); }
-            10% { transform: translate(-1px, -2px) rotate(-1deg); }
-            30% { transform: translate(3px, 2px) rotate(0deg); }
-            50% { transform: translate(-1px, 2px) rotate(1deg); }
-            100% { transform: translate(1px, 1px) rotate(0deg); }
-        }
-        .shake { animation: screen-shake 0.3s infinite; }
-
-        @keyframes ultra-glow { 0%, 100% { filter: drop-shadow(0 0 10px cyan); } 50% { filter: drop-shadow(0 0 40px cyan); } }
-        .hero-ready { animation: ultra-glow 1s infinite; border: 2px solid cyan !important; }
-
-        /* MARP ELEMENTS */
-        .marcher { transition: all 5s linear; z-index: 100; pointer-events: none; }
-        .node-float { animation: float 3s ease-in-out infinite; }
-        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
-        
-        /* SCROLLBARS */
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-thumb { background: var(--gold); }
     </style>
 </head>
 <body>
 
-    <div class="fixed top-0 w-full z-[500] p-3 flex justify-between items-start pointer-events-none">
-        
+    <div class="fixed top-0 w-full z-[1000] p-4 flex justify-between items-start pointer-events-none">
         <div class="flex items-center gap-4 pointer-events-auto">
-            <div class="relative group cursor-pointer" onclick="openProfile()">
-                <div class="w-24 h-24 bg-slate-900 border-4 border-white rounded-2xl shadow-2xl overflow-hidden">
-                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Bryyce" class="w-full h-full">
-                </div>
-                <div class="absolute -bottom-2 -right-2 bg-blue-600 px-3 py-1 rounded border-2 border-white font-black text-xs">VIP 15</div>
+            <div class="relative w-20 h-20 border-4 border-white rounded-xl overflow-hidden shadow-2xl bg-slate-900">
+                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Bryyce" alt="Lord">
+                <div class="absolute bottom-0 bg-blue-600 w-full text-[10px] text-center font-black">VIP 15</div>
             </div>
-            <div class="flex flex-col gap-1">
-                <div class="header-slanted px-6 py-1 min-w-[280px]">
-                    <span class="text-white royal text-lg tracking-widest">LORD BRYYCE</span>
-                    <div class="text-[10px] text-yellow-400 font-bold -mt-1">POWER: <span id="pwr-val">52,400,000</span></div>
-                </div>
-                <div class="flex gap-2 items-center px-4">
-                    <div class="w-48 h-3 bg-black/80 rounded-full border border-gray-700 overflow-hidden">
-                        <div id="xp-bar" class="bg-gradient-to-r from-blue-500 to-cyan-300 h-full w-[75%]"></div>
-                    </div>
-                    <span class="text-[10px] font-black italic">LV. 60</span>
+            <div>
+                <h1 class="royal text-xl text-white tracking-widest drop-shadow-md">LORD BRYYCE</h1>
+                <div class="bg-gradient-to-r from-yellow-600 to-transparent px-4 py-0.5 mt-1 border-l-4 border-yellow-400">
+                    <span class="text-xs font-black">POWER: <span id="pwr-val" class="text-yellow-200">85,200,000</span></span>
                 </div>
             </div>
         </div>
 
-        <div class="grid grid-cols-2 gap-2 pointer-events-auto">
-            <div class="rss-bar w-36 h-8 flex items-center justify-between px-4">
-                <img src="https://cdn-icons-png.flaticon.com/512/1046/1046751.png" class="w-5 h-5">
-                <span class="text-xs text-green-400 font-black" id="food-txt">5.2M</span>
-                <span class="text-green-500 font-bold">+</span>
-            </div>
-            <div class="rss-bar w-36 h-8 flex items-center justify-between px-4">
-                <img src="https://cdn-icons-png.flaticon.com/512/616/616490.png" class="w-5 h-5">
-                <span class="text-xs text-orange-400 font-black" id="wood-txt">4.1M</span>
-                <span class="text-green-500 font-bold">+</span>
-            </div>
-            <div class="rss-bar w-36 h-8 flex items-center justify-between px-4 border-cyan-400">
-                <img src="https://cdn-icons-png.flaticon.com/512/209/209931.png" class="w-5 h-5">
-                <span class="text-xs text-cyan-400 font-black" id="gem-txt">150K</span>
-                <span class="text-blue-500 font-bold">+</span>
-            </div>
-            <button onclick="toggleLeaderboard()" class="bg-yellow-500 text-black text-[10px] font-black uppercase rounded shadow-lg">Rankings</button>
-        </div>
-    </div>
-
-    <div id="viewport">
-        <div id="map" style="transform: translate(-3000px, -3000px) scale(1);">
-            
-            <div id="turf" class="absolute top-[3000px] left-[3000px] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center z-10">
-                <img src="https://cdn-icons-png.flaticon.com/512/3021/3021703.png" class="w-72 h-72 node-float drop-shadow-[0_45px_45px_rgba(0,0,0,0.8)]">
-                <div class="bg-gradient-to-b from-yellow-400 to-yellow-600 text-black font-black royal text-xl px-10 py-1 rounded-full border-4 border-black -mt-12 shadow-2xl">BRYYCE'S CITADEL</div>
-            </div>
-
-            <div id="node-layer"></div>
-            <div id="march-layer"></div>
-        </div>
-    </div>
-
-    <div class="fixed bottom-0 w-full z-[500] flex justify-between items-end p-6 pointer-events-none">
-        
-        <div onclick="toggleMap()" class="pointer-events-auto w-24 h-24 rounded-full border-4 border-yellow-500 bg-slate-900 overflow-hidden shadow-2xl cursor-pointer hover:rotate-6 transition">
-            <img src="https://i.imgur.com/8T8C9po.jpeg" class="w-full h-full object-cover opacity-50">
-            <div class="absolute inset-0 flex items-center justify-center font-black italic text-xs uppercase">Map</div>
-        </div>
-
-        <div class="pointer-events-auto bg-black/90 border-t-2 border-yellow-600 rounded-t-3xl px-10 h-20 flex items-center gap-12 shadow-[0_-10px_50px_rgba(0,0,0,0.8)]">
-            <div class="flex flex-col items-center group cursor-pointer" onclick="openTech()">
-                <span class="text-4xl group-hover:scale-125 transition">🧪</span>
-                <span class="text-[9px] text-yellow-500 font-bold uppercase">Academy</span>
-            </div>
-            <div class="flex flex-col items-center group cursor-pointer" onclick="openBarracks()">
-                <span class="text-4xl group-hover:scale-125 transition">🛡️</span>
-                <span class="text-[9px] text-yellow-500 font-bold uppercase">Troops</span>
-            </div>
-            <div class="flex flex-col items-center group cursor-pointer" onclick="triggerUltimateSearch()">
-                <span class="text-5xl -mt-4 drop-shadow-[0_0_15px_red] group-hover:scale-110 transition">⚔️</span>
-                <span class="text-[9px] text-red-500 font-bold uppercase tracking-widest">WAR</span>
-            </div>
-        </div>
-
-        <div class="pointer-events-auto w-80 h-16 bg-black/60 border-2 border-blue-500/30 rounded-xl p-3 backdrop-blur-md overflow-hidden">
+        <div class="flex flex-col gap-2 pointer-events-auto">
             <div class="flex gap-2">
-                <span class="text-blue-400 font-black text-[10px]">[Guild]</span>
-                <span id="chat-txt" class="text-white text-[10px] italic truncate">Rallying Dark Nest Lv 5 in 5:00...</span>
-            </div>
-            <div class="flex items-center gap-2 mt-2">
-                <div class="w-full h-1.5 bg-gray-800 rounded-full">
-                    <div id="gift-bar" class="h-full bg-yellow-500 w-[40%]"></div>
+                <div class="slanted-tab px-4 py-1 flex items-center gap-2 min-w-[100px]">
+                    <span class="text-yellow-400 text-xs">💎</span>
+                    <span id="gem-count" class="text-xs font-bold text-cyan-300">150,000</span>
                 </div>
-                <span class="text-[8px] font-bold">GIFT</span>
+                <button onclick="openShop()" class="bg-green-600 px-4 py-1 rounded font-black text-xs border-b-4 border-green-900 active:translate-y-1 transition">SHOP</button>
             </div>
         </div>
     </div>
 
-    <div id="combat-arena" class="hidden fixed inset-0 z-[1000] bg-black/95 flex flex-col items-center justify-center">
-        <div class="absolute top-10 flex gap-24">
-            <div class="text-center">
-                <div class="w-56 h-4 bg-gray-800 border-2 border-white rounded-full overflow-hidden mb-2">
-                    <div id="hp-p" class="bg-green-500 h-full w-full transition-all duration-300"></div>
-                </div>
-                <p class="royal text-cyan-400 text-xl">BRYYCE</p>
-            </div>
-            <div class="text-center">
-                <div class="w-56 h-4 bg-gray-800 border-2 border-white rounded-full overflow-hidden mb-2">
-                    <div id="hp-e" class="bg-red-500 h-full w-full transition-all duration-300"></div>
-                </div>
-                <p class="royal text-red-500 text-xl">DARK GENERAL</p>
-            </div>
+    <div id="scene-interior" class="scene hidden-scene flex items-center justify-between px-20">
+        <div class="pillar"></div>
+        <div class="flex flex-col items-center">
+            <h2 class="royal text-5xl mb-10 text-transparent bg-clip-text bg-gradient-to-b from-yellow-200 to-yellow-600">THRONE ROOM</h2>
+            <img src="https://cdn-icons-png.flaticon.com/512/3021/3021703.png" class="throne w-80 h-80">
+            <button onclick="switchScene('city')" class="mt-10 px-8 py-3 bg-white text-black font-black royal rounded-full hover:bg-yellow-500 transition">EXIT TO TURF</button>
         </div>
-
-        <div id="clash-zone" class="flex items-center gap-20 transition-transform">
-            <div class="relative">
-                <img id="p-sprite" src="https://cdn-icons-png.flaticon.com/512/3021/3021703.png" class="w-64 h-64 drop-shadow-[0_0_40px_cyan]">
-                <div id="mana-box" class="absolute -bottom-10 w-full h-3 bg-gray-900 border border-cyan-400 rounded-full overflow-hidden">
-                    <div id="mana-fill" class="bg-cyan-400 h-full w-0 transition-all"></div>
-                </div>
-            </div>
-            <div class="text-6xl font-black italic opacity-20">VS</div>
-            <img id="e-sprite" src="https://cdn-icons-png.flaticon.com/512/2829/2829816.png" class="w-64 h-64 drop-shadow-[0_0_40px_red]">
-        </div>
-
-        <button id="ult-btn" onclick="useUltimate()" class="hidden mt-24 bg-cyan-600 px-12 py-4 rounded-2xl font-black text-2xl border-b-4 border-cyan-950 text-white animate-bounce">ACTIVATE ULTIMATE</button>
-        <p id="battle-log" class="mt-8 text-yellow-500 italic uppercase font-black tracking-widest">Engaging Enemy...</p>
+        <div class="pillar"></div>
     </div>
 
-    <div id="modal-leader" class="hidden fixed inset-0 z-[2000] bg-black/90 flex items-center justify-center p-6 backdrop-blur-md">
-        <div class="bg-[#1a1410] border-4 border-yellow-600 w-full max-w-lg rounded-3xl overflow-hidden shadow-[0_0_100px_gold]">
-            <div class="bg-yellow-600 p-4 text-center">
-                <h3 class="royal text-black text-3xl font-black">KINGDOM RANKINGS</h3>
+    <div id="scene-city" class="scene flex flex-col items-center justify-center bg-[url('https://i.imgur.com/8T8C9po.jpeg')] bg-cover">
+        <div class="absolute inset-0 bg-black/40"></div>
+        <div class="castle-container z-10 flex flex-col items-center">
+            <div class="bg-black/80 px-4 py-1 rounded border border-yellow-500 mb-4 animate-bounce">
+                <span class="text-yellow-500 text-xs font-bold">CLICK CASTLE TO ENTER</span>
             </div>
-            <div id="rank-list" class="p-6 space-y-3 h-[450px] overflow-y-auto"></div>
-            <div class="p-4 border-t border-white/10">
-                <button onclick="toggleLeaderboard()" class="w-full py-4 bg-red-900 rounded-xl font-black">CLOSE</button>
+            <img src="https://cdn-icons-png.flaticon.com/512/3021/3021703.png" 
+                 class="castle-3d w-96 h-96 cursor-pointer" 
+                 onclick="switchScene('interior')">
+            <h1 class="royal text-4xl mt-4 drop-shadow-[0_5px_5px_black]">BRYYCE'S CITADEL</h1>
+        </div>
+        
+        <div class="absolute bottom-10 flex gap-6 z-20">
+            <button onclick="switchScene('world')" class="px-10 py-4 bg-yellow-600 rounded-xl font-black text-xl shadow-2xl border-b-4 border-yellow-900 uppercase">Go to World Map</button>
+        </div>
+    </div>
+
+    <div id="scene-world" class="scene hidden-scene bg-green-900 overflow-hidden">
+        <div id="world-map-container" class="relative w-[4000px] h-[4000px] bg-[#1a2e1a]" style="background-image: url('https://www.transparenttextures.com/patterns/dark-matter.png');">
+            <div id="player-on-map" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
+                <img src="https://cdn-icons-png.flaticon.com/512/3021/3021703.png" class="w-32 h-32">
+                <div class="bg-blue-600 px-2 rounded text-[10px] font-bold">MY CITADEL</div>
+            </div>
+        </div>
+        <div class="absolute bottom-10 left-1/2 -translate-x-1/2">
+            <button onclick="switchScene('city')" class="px-10 py-4 bg-blue-600 rounded-xl font-black text-xl shadow-2xl border-b-4 border-blue-900 uppercase">Back to City</button>
+        </div>
+    </div>
+
+    <div id="shop-modal" class="hidden fixed inset-0 z-[2000] flex items-center justify-center p-10">
+        <div class="w-full max-w-4xl bg-[#1a0f00] border-4 border-yellow-600 rounded-3xl overflow-hidden flex flex-col">
+            <div class="p-6 bg-yellow-600 text-black flex justify-between items-center">
+                <h2 class="royal text-3xl font-black italic">ITEM SHOP</h2>
+                <button onclick="closeShop()" class="text-4xl font-black">&times;</button>
+            </div>
+            <div class="grid grid-cols-3 gap-6 p-10 overflow-y-auto max-h-[600px]">
+                <div class="shop-card p-6 rounded-2xl flex flex-col items-center">
+                    <img src="https://cdn-icons-png.flaticon.com/512/209/209931.png" class="w-20 h-20 mb-4">
+                    <h4 class="font-bold text-xl">10,000 GEMS</h4>
+                    <button class="mt-4 w-full bg-yellow-500 text-black py-2 rounded font-black">$9.99</button>
+                </div>
+                <div class="shop-card p-6 rounded-2xl flex flex-col items-center">
+                    <img src="https://cdn-icons-png.flaticon.com/512/3021/3021703.png" class="w-20 h-20 mb-4">
+                    <h4 class="font-bold text-xl">CASTLE SKIN</h4>
+                    <button class="mt-4 w-full bg-yellow-500 text-black py-2 rounded font-black">$49.99</button>
+                </div>
+                <div class="shop-card p-6 rounded-2xl flex flex-col items-center border-purple-500">
+                    <img src="https://cdn-icons-png.flaticon.com/512/2829/2829816.png" class="w-20 h-20 mb-4">
+                    <h4 class="font-bold text-xl">WAR PACK</h4>
+                    <button class="mt-4 w-full bg-yellow-500 text-black py-2 rounded font-black">$19.99</button>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
-        /* --- CORE ENGINE STATE --- */
-        let stats = {
-            power: 52400000,
-            food: 5200000,
-            wood: 4100000,
-            gems: 150000,
-            view: 'turf',
-            mana: 0,
-            ranks: [
-                {name: "Lord Bryyce", pwr: 52400000, me: true},
-                {name: "X_Dragon_X", pwr: 68900000, me: false},
-                {name: "Shadow_Mage", pwr: 45200000, me: false},
-                {name: "King_Zero", pwr: 38100000, me: false},
-                {name: "Rally_Boss", pwr: 31200000, me: false},
-                {name: "Noob_Crusher", pwr: 25400000, me: false}
-            ]
-        };
+        let currentGems = 150000;
+        let currentPower = 85200000;
 
-        /* --- INITIALIZATION --- */
-        function initWorld() {
-            const layer = document.getElementById('node-layer');
-            const nodes = [
-                {t: 'WOOD', img: 'https://cdn-icons-png.flaticon.com/512/616/616490.png', name: 'Elder Wood'},
-                {t: 'GOLD', img: 'https://cdn-icons-png.flaticon.com/512/2489/2489756.png', name: 'Gold Mine'},
-                {t: 'WAR', img: 'https://cdn-icons-png.flaticon.com/512/2829/2829816.png', name: 'Dark Nest'}
+        function switchScene(sceneId) {
+            // Hide all
+            document.getElementById('scene-interior').classList.add('hidden-scene');
+            document.getElementById('scene-city').classList.add('hidden-scene');
+            document.getElementById('scene-world').classList.add('hidden-scene');
+
+            // Show target
+            document.getElementById('scene-' + sceneId).classList.remove('hidden-scene');
+            
+            // Add world map nodes if entering world
+            if(sceneId === 'world') {
+                generateWorldNodes();
+            }
+        }
+
+        function openShop() { document.getElementById('shop-modal').classList.remove('hidden'); }
+        function closeShop() { document.getElementById('shop-modal').classList.add('hidden'); }
+
+        function generateWorldNodes() {
+            const container = document.getElementById('world-map-container');
+            const icons = [
+                'https://cdn-icons-png.flaticon.com/512/616/616490.png',
+                'https://cdn-icons-png.flaticon.com/512/2489/2489756.png',
+                'https://cdn-icons-png.flaticon.com/512/2829/2829816.png'
             ];
-
-            for(let i=0; i<60; i++) {
-                const node = nodes[Math.floor(Math.random()*nodes.length)];
-                const x = 500 + Math.random()*5000;
-                const y = 500 + Math.random()*5000;
-                if(Math.abs(x-3000)<400 && Math.abs(y-3000)<400) continue;
-
-                const el = document.createElement('div');
-                el.className = 'absolute cursor-pointer hover:scale-110 transition z-20';
-                el.style.left = x+'px'; el.style.top = y+'px';
-                el.onclick = () => startMarch(node.t, x, y);
-                el.innerHTML = `
-                    <div class="flex flex-col items-center">
-                        <img src="${node.img}" class="w-20 h-20 drop-shadow-2xl ${node.t==='WAR'?'filter saturate-200 hue-rotate-[320deg]':''}">
-                        <div class="bg-black/90 px-3 py-1 rounded-full border border-white/20 text-[9px] font-black uppercase mt-1">
-                            ${node.name} LV.${Math.floor(Math.random()*20)+1}
-                        </div>
-                    </div>
-                `;
-                layer.appendChild(el);
+            
+            for(let i=0; i<50; i++) {
+                const x = 500 + Math.random() * 3000;
+                const y = 500 + Math.random() * 3000;
+                const img = icons[Math.floor(Math.random()*icons.length)];
+                
+                const node = document.createElement('img');
+                node.src = img;
+                node.className = 'absolute w-16 h-16 drop-shadow-xl hover:scale-125 transition cursor-pointer';
+                node.style.left = x + 'px';
+                node.style.top = y + 'px';
+                container.appendChild(node);
             }
         }
 
-        /* --- MARCHING LOGIC --- */
-        function startMarch(type, x, y) {
-            const layer = document.getElementById('march-layer');
-            const unit = document.createElement('div');
-            unit.className = 'absolute marcher flex flex-col items-center';
-            unit.style.left = '3000px'; unit.style.top = '3000px';
-            unit.innerHTML = `<img src="https://cdn-icons-png.flaticon.com/512/3021/3021703.png" class="w-14 h-14"><span class="bg-blue-600 px-2 rounded text-[8px] font-bold">MARCHING</span>`;
-            layer.appendChild(unit);
-
-            setTimeout(() => {
-                unit.style.left = x+'px'; unit.style.top = y+'px';
-                setTimeout(() => {
-                    if(type==='WAR') triggerBattle();
-                    else {
-                        unit.innerHTML = `<span class="bg-yellow-500 text-black px-2 rounded text-[8px] font-bold animate-pulse">GATHERING</span>`;
-                        setTimeout(() => {
-                            unit.style.left = '3000px'; unit.style.top = '3000px';
-                            setTimeout(() => {
-                                unit.remove();
-                                addRSS(type, 50000);
-                            }, 5000);
-                        }, 4000);
-                    }
-                }, 5000);
-            }, 100);
-        }
-
-        /* --- BATTLE ENGINE WITH ULTIMATE --- */
-        function triggerBattle() {
-            const arena = document.getElementById('combat-arena');
-            arena.classList.remove('hidden');
-            let php = 100, ehp = 100;
-            stats.mana = 0;
-
-            const combat = setInterval(() => {
-                // Attacks
-                document.getElementById('p-sprite').style.transform = "translateX(40px)";
-                setTimeout(() => document.getElementById('p-sprite').style.transform = "translateX(0)", 100);
-                
-                ehp -= 5; php -= 3;
-                stats.mana += 20;
-                
-                document.getElementById('hp-p').style.width = php + '%';
-                document.getElementById('hp-e').style.width = ehp + '%';
-                document.getElementById('mana-fill').style.width = stats.mana + '%';
-
-                if(stats.mana >= 100) {
-                    document.getElementById('ult-btn').classList.remove('hidden');
-                    document.getElementById('p-sprite').classList.add('hero-ready');
-                }
-
-                if(ehp <= 0 || php <= 0) {
-                    clearInterval(combat);
-                    finishBattle(ehp <= 0);
-                }
-            }, 8000); // Slower for drama
-        }
-
-        function useUltimate() {
-            document.getElementById('ult-btn').classList.add('hidden');
-            document.getElementById('p-sprite').classList.remove('hero-ready');
-            document.body.classList.add('shake');
-            document.getElementById('clash-zone').style.transform = "scale(1.2)";
-            
-            setTimeout(() => {
-                document.body.classList.remove('shake');
-                document.getElementById('clash-zone').style.transform = "scale(1)";
-                document.getElementById('hp-e').style.width = '0%';
-                stats.mana = 0;
-                document.getElementById('mana-fill').style.width = '0%';
-                document.getElementById('battle-log').innerText = "ULTIMATE DESTROYED ENEMY!";
-            }, 500);
-        }
-
-        function finishBattle(won) {
-            setTimeout(() => {
-                document.getElementById('combat-arena').classList.add('hidden');
-                if(won) addRSS('GOLD', 1000000);
-            }, 2000);
-        }
-
-        /* --- UI UTILS --- */
-        function toggleLeaderboard() {
-            const modal = document.getElementById('modal-leader');
-            modal.classList.toggle('hidden');
-            const list = document.getElementById('rank-list');
-            list.innerHTML = '';
-            
-            stats.ranks.sort((a,b)=>b.pwr-a.pwr).forEach((r, i) => {
-                list.innerHTML += `
-                    <div class="flex justify-between items-center p-4 rounded-xl ${r.me?'bg-yellow-500/20 border border-yellow-500':'bg-white/5'}">
-                        <div class="flex items-center gap-4">
-                            <span class="text-2xl font-black italic">#${i+1}</span>
-                            <span class="font-bold">${r.name}</span>
-                        </div>
-                        <span class="text-yellow-500 font-black">${r.pwr.toLocaleString()}</span>
-                    </div>
-                `;
-            });
-        }
-
-        function addRSS(type, amt) {
-            if(type==='WOOD') stats.wood += amt;
-            if(type==='GOLD') stats.food += amt;
-            stats.power += 50000;
-            updateHUD();
-        }
-
-        function updateHUD() {
-            document.getElementById('pwr-val').innerText = stats.power.toLocaleString();
-            document.getElementById('food-txt').innerText = (stats.food/1000000).toFixed(1) + 'M';
-            document.getElementById('wood-txt').innerText = (stats.wood/1000000).toFixed(1) + 'M';
-        }
-
-        function toggleMap() {
-            const map = document.getElementById('map');
-            if(stats.view === 'turf') {
-                map.style.transform = 'translate(-3000px, -3000px) scale(0.2)';
-                stats.view = 'world';
-            } else {
-                map.style.transform = 'translate(-3000px, -3000px) scale(1)';
-                stats.view = 'turf';
-            }
-        }
-
-        // Auto-Chat Bot
-        setInterval(() => {
-            const chats = ["Burn that hive!", "Reinforce me!", "Rallying now!", "Gems for trade!"];
-            document.getElementById('chat-txt').innerText = "Player_"+Math.floor(Math.random()*99)+": "+chats[Math.floor(Math.random()*chats.length)];
-        }, 5000);
-
-        initWorld();
+        // Initialize world map on load
+        generateWorldNodes();
     </script>
 </body>
 </html>
