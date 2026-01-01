@@ -3,206 +3,247 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sovereign Bryyce: Triple Crown</title>
+    <title>Sovereign Bryyce: War Machine</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Oswald:wght@700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Oswald:wght@400;700&display=swap');
         
         :root {
             --gold: #ffd700;
-            --royal-red: #8b0000;
-            --throne-purple: #4b0082;
+            --t1: #a1a1aa; --t2: #3b82f6; --t3: #a855f7; --t4: #ef4444;
         }
 
-        body { background: #000; color: white; font-family: 'Oswald', sans-serif; overflow: hidden; margin: 0; user-select: none; }
+        body { background: #000; color: white; font-family: 'Oswald', sans-serif; overflow: hidden; margin: 0; }
         .royal { font-family: 'Cinzel', serif; }
 
         /* SCENE MANAGEMENT */
-        .scene { position: absolute; inset: 0; transition: opacity 0.8s ease, transform 0.8s ease; }
-        .hidden-scene { opacity: 0; pointer-events: none; transform: scale(1.1); }
+        .scene { position: absolute; inset: 0; transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
+        .hidden-scene { opacity: 0; pointer-events: none; transform: scale(1.05); }
 
-        /* 3D CASTLE INTERIOR (THRONE ROOM) */
-        #throne-room {
-            background: linear-gradient(to bottom, #1a0f00 0%, #4b0082 100%);
-            display: flex; justify-content: center; align-items: center;
+        /* 3D BUILDING GRID */
+        #city-grid {
+            display: grid; grid-template-columns: repeat(6, 1fr); gap: 20px;
+            padding: 120px 50px; width: 2000px; height: 1200px;
         }
-        .pillar {
-            width: 60px; height: 100%;
-            background: linear-gradient(90deg, #222, #444, #222);
-            box-shadow: 0 0 50px rgba(0,0,0,0.9);
+        .building-card {
+            background: rgba(0,0,0,0.6); border: 2px solid #333;
+            border-radius: 15px; padding: 15px; display: flex; flex-direction: column;
+            align-items: center; transition: all 0.3s; cursor: pointer;
+            backdrop-blur: 5px;
         }
-        .throne {
-            filter: drop-shadow(0 0 30px var(--gold));
-            animation: throne-glow 3s infinite alternate;
-        }
-        @keyframes throne-glow { from { filter: drop-shadow(0 0 20px gold); } to { filter: drop-shadow(0 0 60px gold); } }
+        .building-card:hover { border-color: var(--gold); transform: translateY(-10px) rotateX(10deg); }
+        .building-card img { width: 80px; height: 80px; filter: drop-shadow(0 10px 10px black); }
 
-        /* CITY VIEW (3D CASTLE IMAGE) */
-        .castle-container {
-            perspective: 1000px;
+        /* TROOP TIERS */
+        .troop-card {
+            border-top: 4px solid var(--gold);
+            background: linear-gradient(180deg, #1a1a1a 0%, #000 100%);
         }
-        .castle-3d {
-            transform: rotateX(10deg);
-            filter: drop-shadow(0 50px 30px rgba(0,0,0,0.5));
-            transition: transform 0.5s;
-        }
-        .castle-3d:hover { transform: rotateX(20deg) scale(1.05); }
+        .t1 { color: var(--t1); } .t2 { color: var(--t2); } .t3 { color: var(--t3); } .t4 { color: var(--t4); }
 
-        /* SHOP UI */
-        #shop-modal { background: rgba(0,0,0,0.95); backdrop-blur: 20px; }
-        .shop-card {
-            background: linear-gradient(135deg, #2c1e16 0%, #1a0f00 100%);
-            border: 2px solid var(--gold);
-            transition: transform 0.2s;
-        }
-        .shop-card:hover { transform: translateY(-5px); border-color: #fff; }
+        /* PROGRESS BARS */
+        .timer-bar { height: 6px; background: #222; border-radius: 3px; overflow: hidden; width: 100%; margin-top: 5px; }
+        .timer-fill { height: 100%; background: #4caf50; width: 0%; transition: width 0.1s linear; }
 
-        /* HEADERS */
-        .slanted-tab {
-            clip-path: polygon(10% 0, 100% 0, 90% 100%, 0 100%);
-            background: rgba(0,0,0,0.8);
-            border-left: 3px solid var(--gold);
-        }
+        /* SHOP & MODALS */
+        .modal-overlay { background: rgba(0,0,0,0.9); backdrop-blur: 15px; }
     </style>
 </head>
 <body>
 
     <div class="fixed top-0 w-full z-[1000] p-4 flex justify-between items-start pointer-events-none">
         <div class="flex items-center gap-4 pointer-events-auto">
-            <div class="relative w-20 h-20 border-4 border-white rounded-xl overflow-hidden shadow-2xl bg-slate-900">
-                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Bryyce" alt="Lord">
-                <div class="absolute bottom-0 bg-blue-600 w-full text-[10px] text-center font-black">VIP 15</div>
+            <div class="w-20 h-20 border-4 border-white rounded-2xl overflow-hidden shadow-2xl bg-slate-900">
+                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Bryyce">
             </div>
             <div>
-                <h1 class="royal text-xl text-white tracking-widest drop-shadow-md">LORD BRYYCE</h1>
-                <div class="bg-gradient-to-r from-yellow-600 to-transparent px-4 py-0.5 mt-1 border-l-4 border-yellow-400">
-                    <span class="text-xs font-black">POWER: <span id="pwr-val" class="text-yellow-200">85,200,000</span></span>
+                <h1 class="royal text-xl tracking-widest text-white">LORD BRYYCE</h1>
+                <div class="flex gap-2 text-[10px] font-bold text-yellow-500 mt-1">
+                    <span class="bg-black/80 px-2 border border-yellow-600 rounded">POWER: <span id="pwr-val">120.5M</span></span>
                 </div>
             </div>
         </div>
-
-        <div class="flex flex-col gap-2 pointer-events-auto">
-            <div class="flex gap-2">
-                <div class="slanted-tab px-4 py-1 flex items-center gap-2 min-w-[100px]">
-                    <span class="text-yellow-400 text-xs">💎</span>
-                    <span id="gem-count" class="text-xs font-bold text-cyan-300">150,000</span>
-                </div>
-                <button onclick="openShop()" class="bg-green-600 px-4 py-1 rounded font-black text-xs border-b-4 border-green-900 active:translate-y-1 transition">SHOP</button>
+        <div class="flex flex-col gap-2 pointer-events-auto items-end">
+            <div class="bg-black/90 px-4 py-1 rounded-full border-2 border-cyan-500 flex items-center gap-3">
+                <span class="text-cyan-400">💎</span>
+                <span id="gem-count" class="text-white font-black">250,000</span>
+                <button onclick="toggleModal('shop')" class="bg-cyan-600 text-[10px] px-2 rounded">+</button>
             </div>
         </div>
     </div>
 
-    <div id="scene-interior" class="scene hidden-scene flex items-center justify-between px-20">
-        <div class="pillar"></div>
-        <div class="flex flex-col items-center">
-            <h2 class="royal text-5xl mb-10 text-transparent bg-clip-text bg-gradient-to-b from-yellow-200 to-yellow-600">THRONE ROOM</h2>
-            <img src="https://cdn-icons-png.flaticon.com/512/3021/3021703.png" class="throne w-80 h-80">
-            <button onclick="switchScene('city')" class="mt-10 px-8 py-3 bg-white text-black font-black royal rounded-full hover:bg-yellow-500 transition">EXIT TO TURF</button>
-        </div>
-        <div class="pillar"></div>
-    </div>
-
-    <div id="scene-city" class="scene flex flex-col items-center justify-center bg-[url('https://i.imgur.com/8T8C9po.jpeg')] bg-cover">
-        <div class="absolute inset-0 bg-black/40"></div>
-        <div class="castle-container z-10 flex flex-col items-center">
-            <div class="bg-black/80 px-4 py-1 rounded border border-yellow-500 mb-4 animate-bounce">
-                <span class="text-yellow-500 text-xs font-bold">CLICK CASTLE TO ENTER</span>
+    <div id="scene-city" class="scene overflow-auto bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')] bg-[#1a2e1a]">
+        <div id="city-grid">
             </div>
-            <img src="https://cdn-icons-png.flaticon.com/512/3021/3021703.png" 
-                 class="castle-3d w-96 h-96 cursor-pointer" 
-                 onclick="switchScene('interior')">
-            <h1 class="royal text-4xl mt-4 drop-shadow-[0_5px_5px_black]">BRYYCE'S CITADEL</h1>
-        </div>
         
-        <div class="absolute bottom-10 flex gap-6 z-20">
-            <button onclick="switchScene('world')" class="px-10 py-4 bg-yellow-600 rounded-xl font-black text-xl shadow-2xl border-b-4 border-yellow-900 uppercase">Go to World Map</button>
+        <div class="fixed bottom-6 left-1/2 -translate-x-1/2 flex gap-4 z-50">
+            <button onclick="switchScene('world')" class="px-8 py-3 bg-yellow-600 text-black font-black rounded-xl border-b-4 border-yellow-900">WORLD MAP</button>
+            <button onclick="toggleModal('barracks')" class="px-8 py-3 bg-red-700 text-white font-black rounded-xl border-b-4 border-red-950">TRAIN TROOPS</button>
+            <button onclick="toggleModal('research')" class="px-8 py-3 bg-blue-700 text-white font-black rounded-xl border-b-4 border-blue-950">RESEARCH</button>
         </div>
     </div>
 
-    <div id="scene-world" class="scene hidden-scene bg-green-900 overflow-hidden">
-        <div id="world-map-container" class="relative w-[4000px] h-[4000px] bg-[#1a2e1a]" style="background-image: url('https://www.transparenttextures.com/patterns/dark-matter.png');">
-            <div id="player-on-map" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center">
-                <img src="https://cdn-icons-png.flaticon.com/512/3021/3021703.png" class="w-32 h-32">
-                <div class="bg-blue-600 px-2 rounded text-[10px] font-bold">MY CITADEL</div>
-            </div>
-        </div>
-        <div class="absolute bottom-10 left-1/2 -translate-x-1/2">
-            <button onclick="switchScene('city')" class="px-10 py-4 bg-blue-600 rounded-xl font-black text-xl shadow-2xl border-b-4 border-blue-900 uppercase">Back to City</button>
+    <div id="scene-world" class="scene hidden-scene bg-slate-950">
+        <div class="flex items-center justify-center h-full">
+            <h1 class="royal text-4xl opacity-20">KINGDOM MAP VIEW</h1>
+            <button onclick="switchScene('city')" class="fixed bottom-10 px-8 py-3 bg-blue-600 rounded-xl font-bold">RETURN HOME</button>
         </div>
     </div>
 
-    <div id="shop-modal" class="hidden fixed inset-0 z-[2000] flex items-center justify-center p-10">
-        <div class="w-full max-w-4xl bg-[#1a0f00] border-4 border-yellow-600 rounded-3xl overflow-hidden flex flex-col">
-            <div class="p-6 bg-yellow-600 text-black flex justify-between items-center">
-                <h2 class="royal text-3xl font-black italic">ITEM SHOP</h2>
-                <button onclick="closeShop()" class="text-4xl font-black">&times;</button>
+    <div id="modal-barracks" class="hidden fixed inset-0 z-[2000] modal-overlay flex items-center justify-center p-6">
+        <div class="bg-zinc-900 w-full max-w-5xl rounded-3xl overflow-hidden border-2 border-red-600 shadow-2xl flex flex-col">
+            <div class="p-6 bg-red-600 flex justify-between">
+                <h2 class="royal text-2xl font-black">BARRACKS: TRAIN LEGIONS</h2>
+                <button onclick="toggleModal('barracks')" class="text-3xl">&times;</button>
             </div>
-            <div class="grid grid-cols-3 gap-6 p-10 overflow-y-auto max-h-[600px]">
-                <div class="shop-card p-6 rounded-2xl flex flex-col items-center">
-                    <img src="https://cdn-icons-png.flaticon.com/512/209/209931.png" class="w-20 h-20 mb-4">
-                    <h4 class="font-bold text-xl">10,000 GEMS</h4>
-                    <button class="mt-4 w-full bg-yellow-500 text-black py-2 rounded font-black">$9.99</button>
+            <div class="grid grid-cols-4 gap-4 p-8">
+                <div class="troop-card p-4 rounded-xl flex flex-col items-center">
+                    <img src="https://cdn-icons-png.flaticon.com/512/3021/3021703.png" class="w-20 h-20 grayscale mb-2">
+                    <h3 class="t1 font-black">T1 GRUNT</h3>
+                    <p class="text-[10px] text-gray-500 mb-4">Basic Infantry</p>
+                    <button class="w-full bg-zinc-700 py-2 rounded text-xs">TRAIN</button>
                 </div>
-                <div class="shop-card p-6 rounded-2xl flex flex-col items-center">
-                    <img src="https://cdn-icons-png.flaticon.com/512/3021/3021703.png" class="w-20 h-20 mb-4">
-                    <h4 class="font-bold text-xl">CASTLE SKIN</h4>
-                    <button class="mt-4 w-full bg-yellow-500 text-black py-2 rounded font-black">$49.99</button>
+                <div class="troop-card p-4 rounded-xl flex flex-col items-center">
+                    <img src="https://cdn-icons-png.flaticon.com/512/3021/3021703.png" class="w-20 h-20 hue-rotate-180 mb-2">
+                    <h3 class="t2 font-black">T2 WARRIOR</h3>
+                    <p class="text-[10px] text-gray-500 mb-4">Advanced Guard</p>
+                    <button class="w-full bg-blue-600 py-2 rounded text-xs">TRAIN</button>
                 </div>
-                <div class="shop-card p-6 rounded-2xl flex flex-col items-center border-purple-500">
-                    <img src="https://cdn-icons-png.flaticon.com/512/2829/2829816.png" class="w-20 h-20 mb-4">
-                    <h4 class="font-bold text-xl">WAR PACK</h4>
-                    <button class="mt-4 w-full bg-yellow-500 text-black py-2 rounded font-black">$19.99</button>
+                <div class="troop-card p-4 rounded-xl flex flex-col items-center">
+                    <img src="https://cdn-icons-png.flaticon.com/512/3021/3021703.png" class="w-20 h-20 hue-rotate-[280deg] mb-2">
+                    <h3 class="t3 font-black">T3 ROYALIST</h3>
+                    <p class="text-[10px] text-gray-500 mb-4">Elite Knight</p>
+                    <button class="w-full bg-purple-600 py-2 rounded text-xs">TRAIN</button>
+                </div>
+                <div class="troop-card p-4 rounded-xl flex flex-col items-center border-red-500 bg-red-900/10">
+                    <img src="https://cdn-icons-png.flaticon.com/512/3021/3021703.png" class="w-24 h-24 brightness-125 mb-2 drop-shadow-[0_0_15px_red]">
+                    <h3 class="t4 font-black text-xl">T4 OVERLORD</h3>
+                    <p class="text-[10px] text-red-400 font-bold mb-4 uppercase tracking-tighter">Ultimate Destroyer</p>
+                    <button id="t4-btn" class="w-full bg-red-600 py-2 rounded text-xs font-black shadow-lg opacity-50 cursor-not-allowed">LOCKED (RESEARCH)</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-research" class="hidden fixed inset-0 z-[2000] modal-overlay flex items-center justify-center p-6">
+        <div class="bg-zinc-900 w-full max-w-lg rounded-3xl border-2 border-blue-500">
+            <div class="p-6 bg-blue-600 flex justify-between">
+                <h2 class="royal text-xl">ACADEMY: RESEARCH</h2>
+                <button onclick="toggleModal('research')">&times;</button>
+            </div>
+            <div class="p-10 text-center">
+                <img src="https://cdn-icons-png.flaticon.com/512/167/167755.png" class="w-32 h-32 mx-auto mb-6 floating">
+                <h3 class="text-2xl font-bold">UNLOCK T4 MILITIA</h3>
+                <p class="text-sm text-gray-400 mt-2 mb-8">Requires Level 2 Academy and 50,000 Gems</p>
+                <button onclick="startResearch()" class="w-full bg-blue-500 py-4 rounded-xl font-black text-xl border-b-4 border-blue-800">START RESEARCH</button>
+                <div id="res-timer" class="hidden mt-6">
+                    <p class="text-xs text-blue-400 font-bold uppercase mb-2">Analyzing Metallurgy...</p>
+                    <div class="timer-bar"><div id="res-fill" class="timer-fill"></div></div>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
-        let currentGems = 150000;
-        let currentPower = 85200000;
+        // STATE ENGINE
+        let gameState = {
+            power: 120500000,
+            gems: 250000,
+            buildings: Array(30).fill(0).map((_, i) => ({ 
+                id: i, 
+                lvl: 1, 
+                name: i === 0 ? "Main Castle" : "Structure " + (i+1),
+                type: i % 5 === 0 ? 'Production' : 'Military'
+            })),
+            isResearching: false,
+            t4Unlocked: false
+        };
 
-        function switchScene(sceneId) {
-            // Hide all
-            document.getElementById('scene-interior').classList.add('hidden-scene');
-            document.getElementById('scene-city').classList.add('hidden-scene');
-            document.getElementById('scene-world').classList.add('hidden-scene');
-
-            // Show target
-            document.getElementById('scene-' + sceneId).classList.remove('hidden-scene');
-            
-            // Add world map nodes if entering world
-            if(sceneId === 'world') {
-                generateWorldNodes();
-            }
+        // UI NAVIGATION
+        function switchScene(id) {
+            document.querySelectorAll('.scene').forEach(s => s.classList.add('hidden-scene'));
+            document.getElementById('scene-' + id).classList.remove('hidden-scene');
         }
 
-        function openShop() { document.getElementById('shop-modal').classList.remove('hidden'); }
-        function closeShop() { document.getElementById('shop-modal').classList.add('hidden'); }
-
-        function generateWorldNodes() {
-            const container = document.getElementById('world-map-container');
-            const icons = [
-                'https://cdn-icons-png.flaticon.com/512/616/616490.png',
-                'https://cdn-icons-png.flaticon.com/512/2489/2489756.png',
-                'https://cdn-icons-png.flaticon.com/512/2829/2829816.png'
-            ];
-            
-            for(let i=0; i<50; i++) {
-                const x = 500 + Math.random() * 3000;
-                const y = 500 + Math.random() * 3000;
-                const img = icons[Math.floor(Math.random()*icons.length)];
-                
-                const node = document.createElement('img');
-                node.src = img;
-                node.className = 'absolute w-16 h-16 drop-shadow-xl hover:scale-125 transition cursor-pointer';
-                node.style.left = x + 'px';
-                node.style.top = y + 'px';
-                container.appendChild(node);
-            }
+        function toggleModal(id) {
+            const m = document.getElementById('modal-' + id);
+            m.classList.toggle('hidden');
         }
 
-        // Initialize world map on load
-        generateWorldNodes();
+        // BUILDING GENERATOR
+        function initBuildings() {
+            const grid = document.getElementById('city-grid');
+            grid.innerHTML = '';
+            gameState.buildings.forEach(b => {
+                const card = document.createElement('div');
+                card.className = 'building-card';
+                card.onclick = () => upgradeBuilding(b.id);
+                card.innerHTML = `
+                    <img src="https://cdn-icons-png.flaticon.com/512/${b.id === 0 ? '3021/3021703' : '1065/1065500'}.png">
+                    <h4 class="text-[11px] font-bold mt-2 uppercase">${b.name}</h4>
+                    <span class="text-[10px] text-yellow-500 font-black">LV. ${b.lvl}</span>
+                    <div class="timer-bar"><div id="bar-${b.id}" class="timer-fill"></div></div>
+                    <button class="mt-2 text-[9px] bg-green-600 px-2 rounded font-bold">${b.lvl < 2 ? 'UPGRADE' : 'MAX'}</button>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function upgradeBuilding(id) {
+            if (gameState.buildings[id].lvl >= 2) return;
+            
+            const bar = document.getElementById('bar-' + id);
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += 2;
+                bar.style.width = progress + '%';
+                if (progress >= 100) {
+                    clearInterval(interval);
+                    gameState.buildings[id].lvl = 2;
+                    gameState.power += 500000;
+                    document.getElementById('pwr-val').innerText = (gameState.power / 1000000).toFixed(1) + 'M';
+                    initBuildings();
+                }
+            }, 50);
+        }
+
+        // RESEARCH LOGIC
+        function startResearch() {
+            if (gameState.isResearching || gameState.t4Unlocked) return;
+            
+            gameState.isResearching = true;
+            document.getElementById('res-timer').classList.remove('hidden');
+            const fill = document.getElementById('res-fill');
+            let progress = 0;
+
+            const timer = setInterval(() => {
+                progress += 1;
+                fill.style.width = progress + '%';
+                if (progress >= 100) {
+                    clearInterval(timer);
+                    unlockT4();
+                }
+            }, 100);
+        }
+
+        function unlockT4() {
+            gameState.t4Unlocked = true;
+            gameState.power += 5000000;
+            document.getElementById('pwr-val').innerText = (gameState.power / 1000000).toFixed(1) + 'M';
+            
+            const btn = document.getElementById('t4-btn');
+            btn.classList.remove('opacity-50', 'cursor-not-allowed');
+            btn.innerText = "TRAIN OVERLORDS";
+            btn.classList.add('animate-pulse');
+            
+            alert("T4 UNLOCKED! Your power has surged!");
+            toggleModal('research');
+        }
+
+        // INIT
+        window.onload = () => {
+            initBuildings();
+        };
     </script>
 </body>
 </html>
