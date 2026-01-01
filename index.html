@@ -3,118 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ROB | Private Terminal</title>
+    <title>ROB | Neural Interface</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=JetBrains+Mono:wght@400;500&display=swap');
         
-        body {
-            background-color: #050505;
-            color: #e2e8f0;
-            font-family: 'Inter', sans-serif;
-            height: 100vh;
-            display: flex;
-            overflow: hidden;
-        }
-
-        .sidebar {
-            width: 280px;
-            background-color: #0a0a0a;
-            border-right: 1px solid #1a1a1a;
-            display: flex;
-            flex-direction: column;
-            padding: 24px;
-        }
-
-        .main-chat {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            background: radial-gradient(circle at top right, #0d0d0d, #050505);
-        }
-
-        .chat-container {
-            flex: 1;
-            overflow-y: auto;
-            padding: 40px 15%;
-            scroll-behavior: smooth;
-        }
-
-        .input-area {
-            padding: 24px 15% 40px 15%;
-            background: linear-gradient(transparent, #050505 30%);
-        }
-
-        .input-wrapper {
-            background: #111111;
-            border: 1px solid #222;
-            border-radius: 16px;
-            padding: 12px 16px;
-            display: flex;
-            align-items: center;
-            transition: border-color 0.3s, box-shadow 0.3s;
-        }
-
-        .input-wrapper:focus-within {
-            border-color: #444;
-            box-shadow: 0 0 20px rgba(255, 255, 255, 0.03);
-        }
-
-        input {
-            background: transparent;
-            border: none;
-            color: white;
-            flex: 1;
-            padding: 8px;
-            outline: none;
-            font-size: 15px;
-        }
-
-        .message {
-            margin-bottom: 32px;
-            animation: fadeIn 0.4s ease-out;
-        }
-
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-        .rob-avatar {
-            width: 32px; height: 32px;
-            background: linear-gradient(135deg, #333, #111);
-            border-radius: 8px;
-            display: flex; align-items: center; justify-content: center;
-            font-weight: bold; font-size: 12px; color: #aaa;
-            border: 1px solid #444;
-        }
-
-        /* Mono for code or system bits */
+        body { background-color: #050505; color: #e2e8f0; font-family: 'Inter', sans-serif; height: 100vh; display: flex; overflow: hidden; }
+        .sidebar { width: 280px; background-color: #080808; border-right: 1px solid #151515; display: flex; flex-direction: column; padding: 24px; }
+        .main-chat { flex: 1; display: flex; flex-direction: column; background: #050505; }
+        .chat-container { flex: 1; overflow-y: auto; padding: 40px 15%; scroll-behavior: smooth; }
+        .input-area { padding: 24px 15% 40px 15%; background: linear-gradient(transparent, #050505 40%); }
+        .input-wrapper { background: #0f0f0f; border: 1px solid #222; border-radius: 12px; padding: 12px 18px; display: flex; align-items: center; }
+        input { background: transparent; border: none; color: white; flex: 1; outline: none; font-size: 15px; }
+        .message { margin-bottom: 32px; animation: fadeIn 0.3s ease-out; }
+        .rob-avatar { width: 32px; height: 32px; background: #fff; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 900; color: #000; font-size: 14px; }
+        .typing-dot { width: 4px; height: 4px; background: #555; border-radius: 50%; animation: blink 1.4s infinite; }
+        @keyframes blink { 0%, 100% { opacity: 0.2; } 50% { opacity: 1; } }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         .mono { font-family: 'JetBrains Mono', monospace; }
-        
-        ::-webkit-scrollbar { width: 4px; }
-        ::-webkit-scrollbar-thumb { background: #222; border-radius: 10px; }
     </style>
 </head>
 <body>
 
     <aside class="sidebar">
         <div class="flex items-center gap-3 mb-10">
-            <div class="w-10 h-10 bg-white rounded-xl flex items-center justify-center">
-                <span class="text-black font-black text-xl">R</span>
-            </div>
+            <div class="rob-avatar">R</div>
             <div>
-                <h1 class="font-semibold tracking-tight text-lg">ROB</h1>
-                <p class="text-[10px] text-gray-500 uppercase tracking-widest mono">Private Intel</p>
+                <h1 class="font-bold tracking-tight text-lg">ROB</h1>
+                <p class="text-[10px] text-cyan-500 mono uppercase tracking-widest">Active Link</p>
             </div>
         </div>
-
-        <nav class="flex-1 space-y-2">
-            <div class="p-3 bg-white/5 rounded-lg border border-white/10 text-xs font-medium cursor-pointer">Current Session</div>
-            <div class="p-3 hover:bg-white/5 rounded-lg text-xs text-gray-500 cursor-not-allowed">Archives</div>
-            <div class="p-3 hover:bg-white/5 rounded-lg text-xs text-gray-500 cursor-not-allowed">System Logs</div>
-        </nav>
-
+        <div class="space-y-4">
+            <div class="text-[10px] text-gray-600 mono uppercase tracking-widest px-2">Knowledge Base</div>
+            <div class="p-3 bg-white/5 rounded-lg border border-white/10 text-xs text-gray-300">Personal Insights</div>
+            <div class="p-3 hover:bg-white/5 rounded-lg text-xs text-gray-500 cursor-pointer">Strategy Archive</div>
+        </div>
         <div class="mt-auto pt-6 border-t border-white/5">
-            <p class="text-[10px] text-gray-600 mono uppercase mb-2">Authenticated User</p>
-            <p class="text-xs font-bold text-gray-300 uppercase">Lord Bryyce</p>
+            <p class="text-[10px] text-gray-600 mono uppercase mb-1">Authenticated</p>
+            <p class="text-xs font-bold text-white tracking-widest uppercase">Bryyce</p>
         </div>
     </aside>
 
@@ -123,23 +49,21 @@
             <div class="message">
                 <div class="flex items-center gap-3 mb-3">
                     <div class="rob-avatar">R</div>
-                    <span class="text-xs font-semibold text-gray-400 uppercase tracking-widest">Rob</span>
+                    <span class="text-xs font-bold text-gray-400 uppercase tracking-widest">Rob</span>
                 </div>
                 <div class="text-gray-200 leading-relaxed text-[15px] pl-11">
-                    System initialized. Connection secure. <br><br>
-                    Welcome back, Bryyce. I'm **Rob**. I’ve stripped away the noise. What’s on your mind today?
+                    Bryyce. I'm online. My database is fully synced and ready for your personal queries. Ask me anything.
                 </div>
             </div>
         </div>
 
         <div class="input-area">
             <div class="input-wrapper">
-                <input type="text" id="user-in" placeholder="Ask Rob anything..." autocomplete="off">
-                <button onclick="sendMsg()" class="p-2 hover:bg-white/5 rounded-lg transition-colors">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-400"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+                <input type="text" id="user-in" placeholder="Message Rob..." autocomplete="off">
+                <button onclick="processInput()" class="ml-2 text-gray-500 hover:text-white transition-colors">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                 </button>
             </div>
-            <p class="text-center text-[10px] text-gray-600 mt-4 mono uppercase tracking-widest">End-to-End Encrypted | Zenith Neural Link</p>
         </div>
     </main>
 
@@ -147,46 +71,73 @@
         const chatBox = document.getElementById('chat-box');
         const userIn = document.getElementById('user-in');
 
-        function sendMsg() {
-            const text = userIn.value.trim();
-            if(!text) return;
+        // This function handles the "Rob" Logic
+        async function processInput() {
+            const query = userIn.value.trim();
+            if(!query) return;
 
-            // User Message
-            const userDiv = document.createElement('div');
-            userDiv.className = 'message';
-            userDiv.innerHTML = `
-                <div class="flex items-center gap-3 mb-3 justify-end">
-                    <span class="text-xs font-semibold text-gray-500 uppercase tracking-widest">Bryyce</span>
+            // 1. Add User Bubble
+            addMessage('Bryyce', query, 'user');
+            userIn.value = '';
+
+            // 2. Add Typing Indicator
+            const typingId = addTypingIndicator();
+            
+            // 3. Simulate "Rob" Thinking and Responding
+            setTimeout(() => {
+                removeTypingIndicator(typingId);
+                const response = getRobResponse(query);
+                addMessage('Rob', response, 'rob');
+            }, 1200);
+        }
+
+        function getRobResponse(input) {
+            const lower = input.toLowerCase();
+            
+            // Simulated Intelligence Logic
+            if(lower.includes("hello") || lower.includes("hi")) return "I'm here, Bryyce. Ready to dive into whatever you need.";
+            if(lower.includes("who are you")) return "I am Rob. Your personal intelligence, built on a high-tier database for strategic and personal analysis.";
+            if(lower.includes("thank")) return "Always at your service, Bryyce.";
+            
+            // Default "Deep Thought" response
+            return `I've analyzed your request regarding "${input}". To give you the best personal advice, should we look at this from a strategic perspective or a long-term personal growth angle?`;
+        }
+
+        function addMessage(sender, text, type) {
+            const div = document.createElement('div');
+            div.className = 'message';
+            const isUser = type === 'user';
+            
+            div.innerHTML = `
+                <div class="flex items-center gap-3 mb-3 ${isUser ? 'justify-end' : ''}">
+                    ${!isUser ? '<div class="rob-avatar">R</div>' : ''}
+                    <span class="text-xs font-bold text-gray-500 uppercase tracking-widest">${sender}</span>
                 </div>
-                <div class="text-white leading-relaxed text-[15px] text-right pr-2">
+                <div class="text-gray-200 leading-relaxed text-[15px] ${isUser ? 'text-right pr-2' : 'pl-11'}">
                     ${text}
                 </div>
             `;
-            chatBox.appendChild(userDiv);
-            userIn.value = '';
+            chatBox.appendChild(div);
             chatBox.scrollTop = chatBox.scrollHeight;
-
-            // Rob's Response
-            setTimeout(() => {
-                const robDiv = document.createElement('div');
-                robDiv.className = 'message';
-                robDiv.innerHTML = `
-                    <div class="flex items-center gap-3 mb-3">
-                        <div class="rob-avatar">R</div>
-                        <span class="text-xs font-semibold text-gray-400 uppercase tracking-widest">Rob</span>
-                    </div>
-                    <div class="text-gray-200 leading-relaxed text-[15px] pl-11">
-                        Understood. I'm processing that now... What would you like me to do with this information?
-                    </div>
-                `;
-                chatBox.appendChild(robDiv);
-                chatBox.scrollTop = chatBox.scrollHeight;
-            }, 800);
         }
 
-        userIn.addEventListener('keypress', (e) => {
-            if(e.key === 'Enter') sendMsg();
-        });
+        function addTypingIndicator() {
+            const id = 'typing-' + Date.now();
+            const div = document.createElement('div');
+            div.id = id;
+            div.className = 'message flex items-center gap-2 pl-11';
+            div.innerHTML = `<div class="typing-dot"></div><div class="typing-dot" style="animation-delay:0.2s"></div><div class="typing-dot" style="animation-delay:0.4s"></div>`;
+            chatBox.appendChild(div);
+            chatBox.scrollTop = chatBox.scrollHeight;
+            return id;
+        }
+
+        function removeTypingIndicator(id) {
+            const el = document.getElementById(id);
+            if(el) el.remove();
+        }
+
+        userIn.addEventListener('keypress', (e) => { if(e.key === 'Enter') processInput(); });
     </script>
 </body>
 </html>
