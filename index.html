@@ -1,120 +1,93 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
-export default function WarGame() {
-  // --- PLAYER STATE ---
-  const [player, setPlayer] = useState({
-    name: "Lord Bryyce",
-    gems: 1000,
-    castleLevel: 1,
-    pos: { x: 2, y: 2 } // Starting position on the map
-  });
+export default function LordsMobileClone() {
+  const [gems, setGems] = useState(1000);
+  const [level, setLevel] = useState(12);
+  const [pos, setPos] = useState({ x: 2, y: 2 });
 
-  // --- MAP SETTINGS ---
-  const MAP_SIZE = 10;
-  const [activeTab, setActiveTab] = useState('world');
-
-  // --- MOVEMENT LOGIC ---
   const move = (dx, dy) => {
-    setPlayer(prev => ({
-      ...prev,
-      pos: {
-        x: Math.max(0, Math.min(MAP_SIZE - 1, prev.pos.x + dx)),
-        y: Math.max(0, Math.min(MAP_SIZE - 1, prev.pos.y + dy))
-      }
-    }));
-  };
-
-  // --- UPGRADE LOGIC ---
-  const upgradeCastle = () => {
-    const cost = player.castleLevel * 500;
-    if (player.gems >= cost) {
-      setPlayer(prev => ({
-        ...prev,
-        gems: prev.gems - cost,
-        castleLevel: prev.castleLevel + 1
-      }));
-    } else {
-      alert("Need " + cost + " gems to upgrade!");
-    }
+    setPos(prev => ({ x: Math.max(0, Math.min(prev.x + dx, 4)), y: Math.max(0, Math.min(prev.y + dy, 4)) }));
   };
 
   return (
-    <div className="flex flex-col h-screen bg-black text-white p-2 select-none">
+    <div className="h-screen bg-[#1a1c23] flex flex-col font-sans text-white overflow-hidden">
       
-      {/* HEADER: Stats & Upgrading */}
-      <div className="flex justify-between items-center bg-gray-900 border-2 border-yellow-600 p-4 rounded-lg shadow-xl mb-2">
-        <div>
-          <h1 className="text-yellow-500 font-bold text-xl">{player.name}</h1>
-          <p className="text-xs text-gray-400">Castle Lv. {player.castleLevel}</p>
-        </div>
-        <div className="flex gap-4">
-          <div className="bg-blue-900 px-3 py-1 rounded border border-blue-400">
-            💎 {player.gems}
+      {/* --- TOP STATUS BAR --- */}
+      <div className="bg-gradient-to-b from-[#ffd700] to-[#b8860b] p-3 flex justify-between items-center shadow-2xl border-b-2 border-black">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 border-2 border-white rounded-lg bg-slate-800 overflow-hidden shadow-inner">
+            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Lord" alt="Avatar" />
           </div>
-          <button 
-            onClick={upgradeCastle}
-            className="bg-green-600 hover:bg-green-500 px-3 py-1 rounded font-bold text-sm">
-            UPGRADE ({(player.castleLevel * 500)})
+          <div>
+            <h1 className="text-black font-black italic text-lg drop-shadow-md">LORD BRYYCE</h1>
+            <div className="w-32 h-3 bg-gray-800 rounded-full border border-black overflow-hidden">
+              <div className="bg-green-500 h-full w-[60%]"></div>
+            </div>
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <div className="bg-black/40 px-4 py-1 rounded-full border border-white/20 flex items-center gap-2">
+             <span className="text-cyan-400 font-bold">💎 {gems}</span>
+          </div>
+          <button className="bg-[#4caf50] hover:bg-[#45a049] px-4 py-1 rounded-lg font-bold border-b-4 border-green-900 text-sm">
+            UPGRADE
           </button>
         </div>
       </div>
 
-      {/* THE WORLD MAP (A REAL GRID) */}
-      <div className="flex-1 bg-green-900 rounded-lg border-4 border-gray-800 relative overflow-hidden flex items-center justify-center">
-        <div 
-          className="grid gap-1 bg-green-800 p-1"
-          style={{ 
-            gridTemplateColumns: `repeat(${MAP_SIZE}, 1fr)`,
-            width: '90vw',
-            height: '90vw',
-            maxWidth: '500px',
-            maxHeight: '500px'
-          }}
-        >
-          {Array.from({ length: MAP_SIZE * MAP_SIZE }).map((_, i) => {
-            const x = i % MAP_SIZE;
-            const y = Math.floor(i / MAP_SIZE);
-            const isPlayer = player.pos.x === x && player.pos.y === y;
-            
+      {/* --- THE WORLD MAP (Interactive Grid) --- */}
+      <div className="flex-1 relative bg-[#2d4d2d] border-y-4 border-black overflow-hidden">
+        {/* Grass Pattern Background */}
+        <div className="absolute inset-0 opacity-30" style={{backgroundImage: `url('https://www.transparenttextures.com/patterns/dark-matter.png')`}}></div>
+        
+        <div className="grid grid-cols-5 grid-rows-5 h-full w-full">
+          {Array.from({ length: 25 }).map((_, i) => {
+            const x = i % 5;
+            const y = Math.floor(i / 5);
+            const isPlayer = pos.x === x && pos.y === y;
             return (
-              <div 
-                key={i} 
-                className={`flex items-center justify-center text-xl rounded-sm ${
-                  isPlayer ? "bg-yellow-400 border-2 border-white animate-pulse" : "bg-green-700/50"
-                }`}
-              >
-                {isPlayer ? "🏇" : (Math.random() > 0.9 ? "🌲" : "")}
+              <div key={i} className="border border-white/5 flex items-center justify-center relative">
+                {isPlayer ? (
+                  <div className="z-10 animate-bounce">
+                    <img src="https://cdn-icons-png.flaticon.com/512/3021/3021703.png" className="w-16 drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)]" />
+                    <div className="bg-yellow-500 text-[8px] text-black font-bold px-1 rounded absolute -top-2 left-1/2 -translate-x-1/2 uppercase">YOU</div>
+                  </div>
+                ) : (
+                  <img src={i % 7 === 0 ? "https://cdn-icons-png.flaticon.com/512/616/616490.png" : ""} className="w-10 opacity-40" />
+                )}
               </div>
             );
           })}
         </div>
       </div>
 
-      {/* MOVEMENT CONTROLS */}
-      <div className="grid grid-cols-3 gap-2 w-32 mx-auto my-4">
-        <div /> 
-        <button onClick={() => move(0, -1)} className="bg-gray-700 p-4 rounded-lg text-2xl">▲</button>
-        <div />
-        <button onClick={() => move(-1, 0)} className="bg-gray-700 p-4 rounded-lg text-2xl">◀</button>
-        <button onClick={() => move(0, 1)} className="bg-gray-700 p-4 rounded-lg text-2xl">▼</button>
-        <button onClick={() => move(1, 0)} className="bg-gray-700 p-4 rounded-lg text-2xl">▶</button>
+      {/* --- CONTROL PANEL --- */}
+      <div className="bg-[#242933] p-4 flex gap-4 items-center border-t-2 border-black">
+        {/* D-PAD */}
+        <div className="grid grid-cols-3 gap-1 bg-black/20 p-2 rounded-xl">
+          <div /> <button onClick={() => move(0, -1)} className="bg-[#f39c12] w-10 h-10 rounded border-b-4 border-orange-900 active:translate-y-1">▲</button> <div />
+          <button onClick={() => move(-1, 0)} className="bg-[#f39c12] w-10 h-10 rounded border-b-4 border-orange-900 active:translate-y-1">◀</button>
+          <button onClick={() => move(0, 1)} className="bg-[#f39c12] w-10 h-10 rounded border-b-4 border-orange-900 active:translate-y-1">▼</button>
+          <button onClick={() => move(1, 0)} className="bg-[#f39c12] w-10 h-10 rounded border-b-4 border-orange-900 active:translate-y-1">▶</button>
+        </div>
+
+        {/* QUESTS CARD */}
+        <div className="flex-1 bg-gradient-to-r from-[#34495e] to-[#2c3e50] p-3 rounded-xl border border-white/10 flex justify-between items-center">
+          <div>
+            <p className="text-[10px] text-yellow-500 font-bold uppercase">Active Quest</p>
+            <p className="text-sm font-bold">Defeat the Dark Nest</p>
+          </div>
+          <button onClick={() => setGems(gems + 500)} className="bg-[#e74c3c] text-[10px] font-bold px-3 py-2 rounded border-b-4 border-red-900">CLAIM</button>
+        </div>
       </div>
 
-      {/* FOOTER NAV */}
-      <div className="flex justify-around bg-gray-900 p-4 rounded-t-2xl border-t-2 border-yellow-600">
-        <button className="flex flex-col items-center text-yellow-500">
-          <span className="text-2xl">🏰</span>
-          <span className="text-[10px]">CITY</span>
-        </button>
-        <button className="flex flex-col items-center text-gray-500">
-          <span className="text-2xl">🛡️</span>
-          <span className="text-[10px]">HEROES</span>
-        </button>
-        <button className="flex flex-col items-center text-gray-500">
-          <span className="text-2xl">💰</span>
-          <span className="text-[10px]">SHOP</span>
-        </button>
+      {/* --- NAV FOOTER --- */}
+      <div className="bg-[#1a1c23] flex justify-around py-3 border-t border-white/5">
+        <div className="flex flex-col items-center opacity-100"><span className="text-xl">🏰</span><span className="text-[8px] font-bold">CITY</span></div>
+        <div className="flex flex-col items-center opacity-50"><span className="text-xl">🛡️</span><span className="text-[8px] font-bold">HEROES</span></div>
+        <div className="flex flex-col items-center opacity-50"><span className="text-xl">🛒</span><span className="text-[8px] font-bold">SHOP</span></div>
+        <div className="flex flex-col items-center opacity-50"><span className="text-xl">📜</span><span className="text-[8px] font-bold">LOGS</span></div>
       </div>
     </div>
   );
