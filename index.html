@@ -2,151 +2,174 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Sovereign Bryyce: Imperial Mall</title>
+    <title>Sovereign Bryyce: Guilds & Glory</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Oswald:wght@300;700&display=swap');
-        body { background: #050505; color: white; font-family: 'Oswald', sans-serif; overflow: hidden; margin: 0; }
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@900&family=Oswald:wght@500;700&display=swap');
+        
+        body, html { margin: 0; padding: 0; background: #05070a; color: white; font-family: 'Oswald', sans-serif; overflow: hidden; }
         .royal { font-family: 'Cinzel', serif; }
-        
-        #viewport { width: 100vw; height: 100vh; background: url('https://i.imgur.com/8T8C9po.jpeg') center; background-size: cover; position: relative; }
 
-        /* MALL UI */
-        .mall-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 2000; display: none; padding: 40px; }
-        .mall-active { display: flex !important; flex-direction: column; }
-
-        .sidebar { width: 200px; border-right: 1px solid rgba(255,215,0,0.2); }
-        .tab-btn { padding: 15px; text-align: left; width: 100%; border-bottom: 1px solid #222; font-weight: bold; color: #888; transition: 0.3s; }
-        .tab-active { color: #ffd700; background: linear-gradient(90deg, rgba(255,215,0,0.1), transparent); border-left: 4px solid #ffd700; }
-
-        /* PACK CARDS */
-        .pack-card {
-            background: linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%);
-            border: 1px solid #333; border-radius: 12px; overflow: hidden;
-            position: relative; transition: 0.3s; cursor: pointer;
+        /* THE CITY MAP */
+        #city-map {
+            width: 100vw; height: 100vh;
+            background: url('https://i.imgur.com/8T8C9po.jpeg') center no-repeat;
+            background-size: cover; position: relative;
         }
-        .pack-card:hover { transform: translateY(-5px); border-color: #ffd700; }
-        .price-tag { background: #ffd700; color: black; font-weight: 900; padding: 5px 15px; border-radius: 5px; }
-        
-        /* ITEM LIST */
-        .item-row { display: flex; align-items: center; gap: 10px; font-size: 12px; margin-bottom: 5px; color: #ccc; }
-        .item-icon { width: 24px; height: 24px; border-radius: 4px; border: 1px solid #444; }
 
-        /* FLASHY PURCHASE ANIMATION */
-        .purchase-flash { position: fixed; inset: 0; background: white; opacity: 0; pointer-events: none; z-index: 3000; }
+        /* WORLD CHAT OVERLAY */
+        #world-chat {
+            position: fixed; bottom: 100px; left: 20px; width: 380px; height: 200px;
+            background: rgba(0,0,0,0.75); border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; z-index: 500;
+        }
+        .chat-msg { padding: 4px 10px; font-size: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+
+        /* INTERACTIVE ASSETS */
+        .building { position: absolute; cursor: pointer; transition: 0.3s; display: flex; flex-direction: column; align-items: center; }
+        .building:hover { transform: scale(1.1); filter: brightness(1.2); }
+        .label { background: rgba(0,0,0,0.9); border: 1px solid #ffd700; padding: 2px 8px; border-radius: 4px; font-size: 10px; color: #ffd700; margin-top: -10px; }
+
+        /* MODALS */
+        .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.98); z-index: 2000; display: none; padding: 40px; }
+        .active-ui { display: flex !important; flex-direction: column; }
+
+        /* LEADERBOARD TABLE */
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; color: #666; font-size: 12px; border-bottom: 1px solid #333; padding: 10px; }
+        td { padding: 15px 10px; border-bottom: 1px solid #222; }
+        .rank-1 { color: #ffd700; font-weight: 900; }
     </style>
 </head>
 <body>
 
-    <div id="flash" class="purchase-flash"></div>
-
-    <div class="fixed top-0 w-full z-50 p-6 flex justify-between items-center pointer-events-none">
-        <div class="bg-black/90 px-6 py-2 border-b-2 border-yellow-500 rounded-b-xl pointer-events-auto">
-            <span class="text-yellow-500 font-black">MIGHT: <span id="might-val">185.2M</span></span>
-        </div>
-        <div class="bg-black/90 px-6 py-2 border-b-2 border-cyan-500 rounded-b-xl pointer-events-auto">
-            <span class="text-cyan-400 font-black">💎 <span id="gem-val">520,000</span></span>
-        </div>
-    </div>
-
-    <div id="viewport">
-        <button onclick="toggleMall()" class="absolute bottom-10 right-10 bg-yellow-600 p-6 rounded-full shadow-2xl animate-bounce hover:scale-110 transition">
-            <span class="text-3xl">🛒</span>
-            <p class="text-[10px] font-black text-black">MALL</p>
-        </button>
-    </div>
-
-    <div id="mall" class="mall-overlay">
-        <div class="flex justify-between items-center mb-6">
-            <h2 class="royal text-4xl text-yellow-500">Imperial Mall</h2>
-            <button onclick="toggleMall()" class="text-5xl text-gray-500 hover:text-white">&times;</button>
-        </div>
-
-        <div class="flex flex-1 overflow-hidden">
-            <div class="sidebar">
-                <div class="tab-btn tab-active">FEATURED</div>
-                <div class="tab-btn">HERO PACKS</div>
-                <div class="tab-btn">RESOURCES</div>
-                <div class="tab-btn">EQUIPMENT</div>
+    <div class="fixed top-0 w-full z-[1000] p-4 flex justify-between bg-gradient-to-b from-black/80 to-transparent">
+        <div class="flex items-center gap-4 bg-black/60 p-2 rounded-xl border border-white/10">
+            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=BryyceTitan" class="w-14 h-14 rounded-lg border-2 border-yellow-500">
+            <div>
+                <p class="royal text-white text-lg leading-none">LORD BRYYCE</p>
+                <p class="text-yellow-500 text-xs font-black">GUILD: <span class="text-white">[SKY] Skyborn</span></p>
+                <p class="text-[10px] text-cyan-400">MIGHT: <span id="might-val">185.2M</span></p>
             </div>
+        </div>
+        <div class="flex gap-4">
+            <button onclick="openUI('leaderboard')" class="bg-zinc-800 px-4 py-2 rounded-lg border border-white/20 hover:bg-zinc-700 transition">🏆 RANKINGS</button>
+            <div class="bg-black/90 px-6 py-2 rounded-lg border-b-2 border-cyan-500 text-cyan-400 font-bold">💎 <span id="gem-val">520,000</span></div>
+        </div>
+    </div>
 
-            <div class="flex-1 p-8 overflow-y-auto grid grid-cols-2 gap-8" id="pack-container">
-                <div class="pack-card p-6" id="pack-gems" onclick="buyPack('gems')">
-                    <div class="absolute top-0 right-0 bg-red-600 text-[10px] px-3 py-1 font-bold italic">POPULAR!</div>
-                    <h3 class="royal text-2xl mb-4" id="gem-pack-title">Gem Packed ($4.99)</h3>
-                    <div class="item-row">
-                        <div class="item-icon bg-cyan-900"></div> 
-                        <span>Gems: <b class="text-cyan-400" id="gem-pack-amt">+20,000</b></span>
-                    </div>
-                    <div class="item-row">
-                        <div class="item-icon bg-blue-900"></div> 
-                        <span>Speed Ups: <b class="text-blue-300">24 Hours</b></span>
-                    </div>
-                    <div class="mt-6 flex justify-between items-center">
-                        <span class="text-gray-500 line-through text-xs">$19.99</span>
-                        <div class="price-tag">FREE (TEST)</div>
-                    </div>
-                </div>
+    <div id="world-chat">
+        <div class="bg-zinc-900 px-3 py-1 text-[10px] font-bold text-gray-500 uppercase tracking-widest">Kingdom Chat #442</div>
+        <div id="chat-content" class="flex-1 overflow-y-auto p-2"></div>
+        <div class="p-2 bg-black/50 border-t border-white/10 flex gap-2">
+            <input type="text" id="chat-input" placeholder="Type to chat..." class="bg-transparent text-xs w-full outline-none">
+            <button onclick="sendMsg()" class="text-yellow-500 text-xs font-bold">SEND</button>
+        </div>
+    </div>
 
-                <div class="pack-card p-6" onclick="buyPack('mats')">
-                    <h3 class="royal text-2xl mb-4">Material Madness</h3>
-                    <div class="item-row">
-                        <div class="item-icon bg-purple-900"></div> 
-                        <span>Rare Chests: <b class="text-purple-400">x50</b></span>
-                    </div>
-                    <div class="item-row">
-                        <div class="item-icon bg-orange-900"></div> 
-                        <span>Legendary Ember: <b class="text-orange-400">x5</b></span>
-                    </div>
-                    <div class="mt-6 flex justify-between items-center">
-                        <span class="text-gray-500 line-through text-xs">$99.99</span>
-                        <div class="price-tag">FREE (TEST)</div>
-                    </div>
+    <div id="city-map">
+        <div class="building w-48 top-[25%] left-[15%]" onclick="openUI('guild')">
+            <img src="https://cdn-icons-png.flaticon.com/512/3069/3069512.png">
+            <div class="label">GUILD HALL</div>
+        </div>
+        <div class="building w-64 top-[35%] left-[42%]" onclick="alert('Citadel Secure')">
+            <img src="https://cdn-icons-png.flaticon.com/512/3021/3021703.png">
+            <div class="label">LORD'S KEEP</div>
+        </div>
+        <div class="building w-32 top-[60%] left-[70%]" onclick="alert('Shop Opening...')">
+            <img src="https://cdn-icons-png.flaticon.com/512/3593/3593452.png">
+            <div class="label text-pink-500">MALL</div>
+        </div>
+    </div>
+
+    <div id="ui-leaderboard" class="overlay">
+        <div class="flex justify-between items-center mb-10">
+            <h2 class="royal text-4xl text-yellow-500">GLOBAL RANKINGS</h2>
+            <button onclick="closeUI('leaderboard')" class="text-5xl">&times;</button>
+        </div>
+        <div class="flex gap-4 mb-6">
+            <button class="bg-yellow-600 text-black px-6 py-2 rounded font-bold">PLAYER MIGHT</button>
+            <button class="bg-zinc-800 px-6 py-2 rounded font-bold">GUILD MIGHT</button>
+        </div>
+        <div class="overflow-y-auto flex-1">
+            <table>
+                <thead>
+                    <tr><th>RANK</th><th>PLAYER</th><th>GUILD</th><th>MIGHT</th></tr>
+                </thead>
+                <tbody id="leader-table">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="ui-guild" class="overlay">
+        <div class="flex justify-between items-center mb-10">
+            <h2 class="royal text-4xl text-blue-400">GUILD MANAGEMENT</h2>
+            <button onclick="closeUI('guild')" class="text-5xl">&times;</button>
+        </div>
+        <div class="grid grid-cols-2 gap-10">
+            <div class="bg-zinc-900 p-8 rounded-2xl border border-blue-500/30">
+                <h3 class="text-2xl font-bold mb-4">[SKY] Skyborn</h3>
+                <p class="text-gray-400 mb-6 italic">"To the heavens and beyond! We rule the sky."</p>
+                <div class="space-y-2">
+                    <p class="flex justify-between"><span>Leader:</span> <span class="text-yellow-500 font-bold">Bryyce</span></p>
+                    <p class="flex justify-between"><span>Members:</span> <span>98/100</span></p>
+                    <p class="flex justify-between"><span>Gift Level:</span> <span class="text-green-400">25</span></p>
                 </div>
+            </div>
+            <div class="bg-zinc-900 p-8 rounded-2xl border border-white/5">
+                <h3 class="text-xl font-bold mb-4">GUILD ACTIONS</h3>
+                <button class="w-full bg-blue-600 py-3 rounded-lg mb-4 font-bold">SEND GUILD HELP</button>
+                <button class="w-full bg-zinc-800 py-3 rounded-lg font-bold">VIEW ALLIANCE MEMBERS</button>
             </div>
         </div>
     </div>
 
     <script>
-        let totalGems = 520000;
-        let totalMight = 185200000;
-        let gemPackTier = 0;
-        const gemTiers = [
-            { title: "Gem Packed ($4.99)", gems: 20000, next: "Gem Packed ($19.99)" },
-            { title: "Gem Packed ($19.99)", gems: 85000, next: "Gem Packed ($49.99)" },
-            { title: "Gem Packed ($49.99)", gems: 250000, next: "Gem Packed ($99.99)" },
-            { title: "Gem Packed ($99.99)", gems: 600000, next: "MAXED" }
+        // --- CHAT ENGINE ---
+        const aiPlayers = ["VikingLord", "ShadowKing", "QueenRage", "DragonSlayer", "FarmerJoe"];
+        const aiMessages = ["Rally on the Wonder!", "Any guilds recruiting?", "Just hit 200M Might!", "Trading wood for gold.", "Help me with research!"];
+        
+        function addChat(user, msg, color = "white") {
+            const chat = document.getElementById('chat-content');
+            const div = document.createElement('div');
+            div.className = "chat-msg";
+            div.innerHTML = `<span class="text-yellow-500 font-bold">[K442] ${user}:</span> <span style="color:${color}">${msg}</span>`;
+            chat.appendChild(div);
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        setInterval(() => {
+            const p = aiPlayers[Math.floor(Math.random() * aiPlayers.length)];
+            const m = aiMessages[Math.floor(Math.random() * aiMessages.messages?.length || 5)];
+            addChat(p, m);
+        }, 4000);
+
+        function sendMsg() {
+            const input = document.getElementById('chat-input');
+            if(input.value) { addChat("Bryyce", input.value, "#00ffcc"); input.value = ""; }
+        }
+
+        // --- LEADERBOARD ENGINE ---
+        const leaders = [
+            { rank: 1, name: "Bryyce", guild: "SKY", might: "185.2M" },
+            { rank: 2, name: "GodZilla", guild: "REX", might: "172.1M" },
+            { rank: 3, name: "X-Man", guild: "SKY", might: "165.9M" },
+            { rank: 4, name: "TheGhost", guild: "VOID", might: "140.2M" },
+            { rank: 5, name: "Lulu77", guild: "MEOW", might: "138.0M" }
         ];
 
-        function toggleMall() { document.getElementById('mall').classList.toggle('mall-active'); }
-
-        function buyPack(type) {
-            // Visual Flash Effect
-            const flash = document.getElementById('flash');
-            flash.style.opacity = "1";
-            setTimeout(() => flash.style.opacity = "0", 100);
-
-            if (type === 'gems') {
-                const current = gemTiers[gemPackTier];
-                totalGems += current.gems;
-                totalMight += (current.gems / 10); // 200+ Idea: Gems increase Might
-
-                // Scaling Logic
-                if (gemPackTier < gemTiers.length - 1) {
-                    gemPackTier++;
-                    document.getElementById('gem-pack-title').innerText = gemTiers[gemPackTier].title;
-                    document.getElementById('gem-pack-amt').innerText = "+" + gemTiers[gemPackTier].gems.toLocaleString();
-                }
-            } else if (type === 'mats') {
-                totalMight += 5000000; // Material madness gives massive might boost
-            }
-
-            // Update HUD
-            document.getElementById('gem-val').innerText = totalGems.toLocaleString();
-            document.getElementById('might-val').innerText = (totalMight / 1000000).toFixed(1) + "M";
-            
-            alert("PURCHASE SUCCESSFUL! Items added to account.");
+        function loadLeaders() {
+            const table = document.getElementById('leader-table');
+            leaders.forEach(l => {
+                table.innerHTML += `<tr><td class="${l.rank==1?'rank-1':''}">${l.rank}</td><td>${l.name}</td><td>[${l.guild}]</td><td>${l.might}</td></tr>`;
+            });
         }
+
+        function openUI(id) { document.getElementById('ui-' + id).classList.add('active-ui'); }
+        function closeUI(id) { document.getElementById('ui-' + id).classList.remove('active-ui'); }
+
+        window.onload = loadLeaders;
     </script>
 </body>
 </html>
