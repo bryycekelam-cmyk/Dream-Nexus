@@ -2,154 +2,159 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Empire Conquest: Bryyce Edition</title>
+    <title>Empire: Age of Bryyce</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@900&family=Oswald:wght@700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Oswald:wght@500&display=swap');
         
-        body { background-color: #020202; font-family: 'Oswald', sans-serif; }
-        .royal { font-family: 'Cinzel', serif; }
-
-        /* ANIMATIONS */
-        @keyframes hover { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
-        .hero-float { animation: hover 3s ease-in-out infinite; }
+        body { background: #000; overflow: hidden; font-family: 'Oswald', sans-serif; }
         
-        @keyframes strike { 
-            0% { transform: translateX(0); } 
-            20% { transform: translateX(20px) rotate(10deg); } 
-            100% { transform: translateX(0); } 
+        /* ISOMETRIC GRID TRANSFORMATION */
+        #world-map {
+            display: grid;
+            grid-template-columns: repeat(20, 120px);
+            grid-template-rows: repeat(20, 120px);
+            transform: rotateX(60deg) rotateZ(45deg);
+            transform-style: preserve-3d;
+            transition: all 0.5s ease-out;
         }
-        .attack-anim { animation: strike 0.4s ease-in-out; }
 
-        .gold-border { border: 3px solid #ffd700; box-shadow: 0 0 15px rgba(255, 215, 0, 0.4); }
-        .map-tile { background-image: url('https://www.transparenttextures.com/patterns/dark-matter.png'); }
+        .tile {
+            width: 120px;
+            height: 120px;
+            background: url('https://www.transparenttextures.com/patterns/dark-matter.png'), #2d4d2d;
+            border: 1px solid rgba(255,255,255,0.05);
+            position: relative;
+        }
+
+        /* 3D BUILDINGS */
+        .building {
+            transform: rotateZ(-45deg) rotateX(-60deg) translateY(-40px);
+            filter: drop-shadow(0 20px 10px rgba(0,0,0,0.5));
+            transition: transform 0.2s;
+        }
+        .building:hover { transform: rotateZ(-45deg) rotateX(-60deg) translateY(-50px) scale(1.1); }
+
+        .hud-gradient { background: linear-gradient(to bottom, #3e2b1c 0%, #1a1108 100%); border-bottom: 3px solid #ffd700; }
+        
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        .floating { animation: float 3s ease-in-out infinite; }
     </style>
 </head>
-<body class="text-white overflow-hidden select-none">
+<body class="text-white select-none">
 
-    <div class="h-24 bg-gradient-to-b from-[#3a2a1a] to-[#1a1108] border-b-[3px] border-[#ffd700] flex items-center justify-between px-6 z-50 relative">
-        <div class="flex items-center gap-4">
+    <div class="hud-gradient h-28 w-full fixed top-0 z-50 flex items-center justify-between px-8 shadow-2xl">
+        <div class="flex items-center gap-5">
             <div class="relative">
-                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=KingBryyce" class="w-16 h-16 rounded-full gold-border bg-slate-800 hero-float">
-                <div class="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-[#ffd700] text-black text-[10px] px-2 font-black rounded-full border-2 border-black">VIP 12</div>
+                <div class="w-20 h-20 rounded-xl border-4 border-[#ffd700] overflow-hidden bg-slate-900 shadow-[0_0_20px_rgba(255,215,0,0.3)]">
+                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=King" class="w-full h-full">
+                </div>
+                <div class="absolute -bottom-2 -right-2 bg-red-600 px-2 py-1 rounded font-bold text-xs border border-white">LV 50</div>
             </div>
             <div>
-                <h1 class="royal text-[#ffd700] text-2xl tracking-widest leading-none">LORD BRYYCE</h1>
-                <div class="flex gap-1 mt-1">
-                    <div class="w-4 h-4 bg-red-600 rounded-sm"></div>
-                    <div class="w-4 h-4 bg-red-600 rounded-sm"></div>
-                    <div class="w-4 h-4 bg-gray-600 rounded-sm"></div>
+                <h1 style="font-family: 'Cinzel';" class="text-[#ffd700] text-3xl italic tracking-tighter">LORD BRYYCE</h1>
+                <div class="flex items-center gap-3 mt-1">
+                    <span class="text-xs text-gray-400 font-bold uppercase tracking-widest">Power: 12,450,000</span>
+                    <div class="w-48 h-3 bg-black/50 rounded-full border border-yellow-900 overflow-hidden">
+                        <div class="bg-gradient-to-r from-orange-500 to-yellow-400 h-full w-3/4 shadow-[0_0_10px_orange]"></div>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div class="flex flex-col gap-1 items-end">
-            <div class="flex gap-4">
-                <div class="bg-black/60 border-2 border-cyan-500 rounded-md px-4 py-1 flex items-center gap-3">
-                    <img src="https://cdn-icons-png.flaticon.com/512/209/209931.png" class="w-5 h-5">
-                    <span class="text-cyan-400 font-bold text-lg" id="gemDisplay">50,000</span>
-                </div>
-                <div class="bg-black/60 border-2 border-green-500 rounded-md px-4 py-1 flex items-center gap-3">
-                    <img src="https://cdn-icons-png.flaticon.com/512/3133/3133463.png" class="w-5 h-5">
-                    <span class="text-green-400 font-bold text-lg">1.2M</span>
-                </div>
+        <div class="flex gap-4">
+            <div class="bg-black/60 rounded-lg p-2 border-2 border-[#ffd700]/30 flex items-center gap-3 w-32">
+                <img src="https://cdn-icons-png.flaticon.com/512/209/209931.png" class="w-6 h-6">
+                <span class="text-cyan-400 font-black text-xl">45K</span>
             </div>
-            <button onclick="powerUp()" class="text-[10px] text-yellow-500 font-bold hover:text-white transition uppercase tracking-tighter">↑ Increase Power</button>
+            <div class="bg-black/60 rounded-lg p-2 border-2 border-green-500/30 flex items-center gap-3 w-32">
+                <img src="https://cdn-icons-png.flaticon.com/512/3133/3133463.png" class="w-6 h-6">
+                <span class="text-green-400 font-black text-xl">1.2M</span>
+            </div>
+            <button class="bg-[#ffd700] text-black px-6 py-2 rounded-lg font-black hover:bg-white transition uppercase shadow-lg">Store</button>
         </div>
     </div>
 
-    <div class="flex h-[calc(100vh-96px)]">
-        
-        <div class="w-20 bg-black/40 border-r border-[#ffd700]/20 flex flex-col items-center py-6 gap-8">
-            <button class="w-12 h-12 bg-yellow-600/20 rounded-xl border border-yellow-500 flex items-center justify-center text-2xl">🛡️</button>
-            <button class="w-12 h-12 bg-blue-600/20 rounded-xl border border-blue-500 flex items-center justify-center text-2xl">⚔️</button>
-            <button class="w-12 h-12 bg-green-600/20 rounded-xl border border-green-500 flex items-center justify-center text-2xl">🏹</button>
-            <button class="w-12 h-12 bg-purple-600/20 rounded-xl border border-purple-500 flex items-center justify-center text-2xl">🔥</button>
-        </div>
-
-        <div class="flex-1 relative bg-[#2a3d2a] overflow-hidden">
-            <div id="map" class="absolute w-[2000px] h-[2000px] grid grid-cols-20 grid-rows-20 transition-transform duration-700 ease-out">
-                </div>
-            
-            <div class="absolute bottom-10 right-10 flex flex-col items-center gap-2">
-                <div class="grid grid-cols-3 gap-2 p-4 bg-black/60 rounded-full gold-border shadow-2xl">
-                    <div=""></div>
-                    <button onclick="move(0,-1)" class="w-12 h-12 bg-yellow-600 rounded-lg shadow-lg active:scale-95 transition">▲</button>
-                    <div=""></div>
-                    <button onclick="move(-1,0)" class="w-12 h-12 bg-yellow-600 rounded-lg shadow-lg active:scale-95 transition">◀</button>
-                    <button onclick="move(0,1)" class="w-12 h-12 bg-yellow-600 rounded-lg shadow-lg active:scale-95 transition">▼</button>
-                    <button onclick="move(1,0)" class="w-12 h-12 bg-yellow-600 rounded-lg shadow-lg active:scale-95 transition">▶</button>
-                </div>
+    <div id="camera" class="w-full h-screen flex items-center justify-center cursor-move">
+        <div id="world-map">
             </div>
-        </div>
     </div>
 
-    <div id="battleScreen" class="hidden fixed inset-0 z-[100] bg-black/90 flex flex-col items-center justify-center p-10">
-        <h2 class="royal text-red-600 text-6xl mb-12 italic font-black">BATTLE COMMENCED</h2>
-        <div class="flex items-center gap-20">
-            <div class="flex flex-col items-center gap-4">
-                <img src="https://cdn-icons-png.flaticon.com/512/3021/3021703.png" id="pSprite" class="w-48 hero-float drop-shadow-[0_0_30px_cyan]">
-                <p class="royal text-cyan-400 text-2xl">Lord Bryyce</p>
+    <div class="fixed bottom-0 w-full h-24 bg-gradient-to-t from-black to-transparent flex justify-center gap-10 items-end pb-6 px-10">
+        <button onclick="zoomMap(0.8)" class="bg-slate-800 p-4 rounded-full border-2 border-white/20 hover:border-yellow-500 transition shadow-xl">
+            <span class="text-2xl">🔍</span>
+        </button>
+        <div class="bg-black/80 h-16 px-10 rounded-t-3xl border-x-2 border-t-2 border-[#ffd700] flex items-center gap-12">
+            <div class="flex flex-col items-center cursor-pointer group">
+                <span class="text-3xl group-hover:scale-125 transition">🏰</span>
+                <span class="text-[10px] text-yellow-500 font-bold uppercase">City</span>
             </div>
-            <div class="text-7xl font-black text-white italic">VS</div>
-            <div class="flex flex-col items-center gap-4">
-                <img src="https://cdn-icons-png.flaticon.com/512/2829/2829816.png" class="w-48 hero-float drop-shadow-[0_0_30px_red]">
-                <p class="royal text-red-600 text-2xl">Dark Nest Guard</p>
+            <div class="flex flex-col items-center cursor-pointer group opacity-50">
+                <span class="text-3xl group-hover:scale-125 transition">🛡️</span>
+                <span class="text-[10px] text-yellow-500 font-bold uppercase">Heroes</span>
+            </div>
+            <div class="flex flex-col items-center cursor-pointer group opacity-50">
+                <span class="text-3xl group-hover:scale-125 transition">⚔️</span>
+                <span class="text-[10px] text-yellow-500 font-bold uppercase">Battle</span>
             </div>
         </div>
-        <button onclick="closeBattle()" class="mt-20 bg-white text-black px-12 py-4 rounded-full font-black text-2xl hover:bg-red-600 hover:text-white transition">FINISH BATTLE</button>
+        <button onclick="zoomMap(1.2)" class="bg-slate-800 p-4 rounded-full border-2 border-white/20 hover:border-yellow-500 transition shadow-xl">
+            <span class="text-2xl">🔎</span>
+        </button>
     </div>
 
     <script>
-        const map = document.getElementById('map');
-        let p = { x: 5, y: 5 };
-        let gems = 50000;
+        const map = document.getElementById('world-map');
+        let currentZoom = 1;
 
-        function init() {
+        function initMap() {
             map.innerHTML = '';
-            map.style.gridTemplateColumns = `repeat(20, 1fr)`;
-            
-            for(let y=0; y<20; y++) {
-                for(let x=0; x<20; x++) {
-                    const tile = document.createElement('div');
-                    tile.className = "w-[100px] h-[100px] border border-black/10 flex items-center justify-center relative map-tile";
-                    
-                    if(x === p.x && y === p.y) {
-                        tile.innerHTML = `<img src="https://cdn-icons-png.flaticon.com/512/3021/3021703.png" class="w-16 drop-shadow-2xl z-20">`;
-                    } else if((x+y)%13 === 0) {
-                        tile.innerHTML = `<img src="https://cdn-icons-png.flaticon.com/512/2829/2829816.png" class="w-16 opacity-80 cursor-pointer hover:scale-125 transition" onclick="triggerBattle()">`;
-                    } else if((x*y)%17 === 0) {
-                        tile.innerHTML = `<img src="https://cdn-icons-png.flaticon.com/512/616/616490.png" class="w-12 opacity-30">`;
-                    }
-                    map.appendChild(tile);
+            for (let i = 0; i < 400; i++) {
+                const tile = document.createElement('div');
+                tile.className = 'tile';
+                
+                // Add high-def buildings to certain spots
+                if (i === 210) { // Player Main Castle
+                    tile.innerHTML = `
+                        <div class="building floating z-50">
+                            <img src="https://cdn-icons-png.flaticon.com/512/3021/3021703.png" class="w-32 h-32">
+                            <div class="bg-yellow-500 text-black font-black px-2 py-0.5 rounded-full absolute -top-5 left-1/2 -translate-x-1/2 text-xs border-2 border-black">YOUR CASTLE</div>
+                        </div>`;
+                } else if (i % 45 === 0 && i !== 0) { // Resource Nodes
+                    tile.innerHTML = `
+                        <div class="building opacity-90">
+                            <img src="https://cdn-icons-png.flaticon.com/512/3133/3133463.png" class="w-16 h-16">
+                        </div>`;
+                } else if (i % 67 === 0) { // Enemy Dark Nests
+                    tile.innerHTML = `
+                        <div class="building">
+                            <img src="https://cdn-icons-png.flaticon.com/512/2829/2829816.png" class="w-24 h-24 brightness-50 sepia-[1] saturate-[5]">
+                        </div>`;
                 }
+                
+                map.appendChild(tile);
             }
-            map.style.transform = `translate(${(5-p.x)*100}px, ${(5-p.y)*100}px)`;
         }
 
-        function move(dx, dy) {
-            p.x = Math.max(0, Math.min(19, p.x + dx));
-            p.y = Math.max(0, Math.min(19, p.y + dy));
-            init();
+        function zoomMap(factor) {
+            currentZoom *= factor;
+            map.style.scale = currentZoom;
         }
 
-        function triggerBattle() {
-            document.getElementById('battleScreen').classList.remove('hidden');
-            const sprite = document.getElementById('pSprite');
-            setInterval(() => sprite.classList.toggle('attack-anim'), 800);
-        }
+        // Draggable Map Logic
+        let isDown = false;
+        let startX, startY, scrollLeft, scrollTop;
 
-        function closeBattle() {
-            document.getElementById('battleScreen').classList.add('hidden');
-            gems += 5000;
-            document.getElementById('gemDisplay').innerText = gems.toLocaleString();
-        }
+        window.addEventListener('mousedown', (e) => { isDown = true; startX = e.pageX; startY = e.pageY; });
+        window.addEventListener('mouseup', () => { isDown = false; });
+        window.addEventListener('mousemove', (e) => {
+            if(!isDown) return;
+            const walkX = (e.pageX - startX) * 2;
+            const walkY = (e.pageY - startY) * 2;
+            document.getElementById('camera').style.transform = `translate(${walkX}px, ${walkY}px)`;
+        });
 
-        function powerUp() {
-            alert("Power Level Increasing! ⚔️ +150,000");
-        }
-
-        init();
+        initMap();
     </script>
 </body>
 </html>
