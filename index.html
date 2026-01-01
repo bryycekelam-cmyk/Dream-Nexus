@@ -3,194 +3,145 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sovereign Bryyce: Tactical War</title>
+    <title>Sovereign Bryyce: Tactical World</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@900&family=Oswald:wght@700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@900&family=Roboto+Condensed:wght@700&display=swap');
         
-        :root { --gold: #ffd700; --inf: #ef4444; --ran: #3b82f6; --cav: #10b981; }
-        body { background: #000; color: white; font-family: 'Oswald', sans-serif; overflow: hidden; margin: 0; }
-        
-        /* BATTLEFIELD STYLING */
-        .battle-lane { height: 120px; background: rgba(255,255,255,0.03); border-radius: 10px; margin: 10px 0; display: flex; align-items: center; justify-content: space-between; padding: 0 40px; }
-        .troop-icon { width: 50px; height: 50px; filter: drop-shadow(0 0 10px currentColor); }
-        
-        /* SCENE TRANSITIONS */
-        .scene { position: absolute; inset: 0; transition: transform 0.8s cubic-bezier(0.4, 0, 0.2, 1); }
-        .hidden-scene { transform: translateY(100%); }
+        :root { --gold: #ffd700; --bronze: #cd7f32; --tier4: #ef4444; }
+        body { background: #000; color: white; font-family: 'Roboto Condensed', sans-serif; overflow: hidden; margin: 0; }
+        .royal { font-family: 'Cinzel', serif; }
 
-        /* COUNTER UI */
-        .counter-badge { font-size: 10px; padding: 2px 6px; border-radius: 4px; font-weight: 900; }
-        .win { background: #10b981; color: black; }
-        .lose { background: #ef4444; color: white; }
+        /* 3D UI & PANELS */
+        .panel { background: rgba(10, 15, 20, 0.98); border: 2px solid #333; border-radius: 15px; box-shadow: 0 0 50px rgba(0,0,0,1); }
+        .hidden-panel { display: none; }
+        
+        /* COLOSSEUM ARENA */
+        .arena-grid { display: grid; grid-template-columns: 1fr 100px 1fr; height: 100%; align-items: center; }
+        .hero-slot { width: 80px; height: 110px; border: 2px solid #555; border-radius: 8px; background: #111; position: relative; }
+        .hero-slot.active { border-color: var(--gold); box-shadow: 0 0 10px var(--gold); }
+        
+        /* ANIMATIONS */
+        @keyframes clash { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(30px); } }
+        .attacker { animation: clash 0.6s infinite; }
+        .defender { animation: clash 0.6s infinite reverse; }
 
-        @keyframes clash {
-            0% { transform: translateX(0); }
-            50% { transform: translateX(20px); }
-            100% { transform: translateX(0); }
-        }
-        .attacking { animation: clash 0.4s infinite; }
+        /* SCENE STYLING */
+        .viewport { width: 100vw; height: 100vh; background-size: cover; background-position: center; }
+        .btn-nav { cursor: pointer; transition: 0.3s; filter: grayscale(0.5); }
+        .btn-nav:hover { filter: grayscale(0) scale(1.1); }
     </style>
 </head>
 <body>
 
-    <div class="fixed top-0 w-full z-[1000] p-4 flex justify-between items-start pointer-events-none">
-        <div class="flex items-center gap-4 pointer-events-auto">
-            <div class="w-16 h-16 border-2 border-yellow-500 rounded-lg overflow-hidden bg-zinc-900">
-                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=BryyceWar">
+    <div class="fixed top-0 w-full z-[1000] p-4 flex justify-between items-start">
+        <div class="flex items-center gap-4 bg-black/60 p-2 rounded-xl border border-white/10">
+            <div class="w-16 h-16 border-2 border-white rounded-lg overflow-hidden bg-blue-900">
+                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=BryyceFinal">
             </div>
             <div>
-                <h2 class="text-white royal text-lg">BRYYCE</h2>
-                <div class="bg-black/80 px-2 border border-yellow-600 rounded">
-                    <span class="text-[10px] text-yellow-500">MIGHT: 125M</span>
+                <h2 class="royal text-lg leading-none text-white">BRYYCE</h2>
+                <p class="text-[10px] text-yellow-500 font-bold uppercase">Might: <span id="might-val">175.4M</span></p>
+                <div class="flex gap-2 mt-1">
+                    <span class="text-[9px] bg-blue-600 px-1 rounded">VIP 15</span>
+                    <span class="text-[9px] bg-orange-600 px-1 rounded">LV. 60</span>
                 </div>
             </div>
         </div>
-        <div class="pointer-events-auto flex gap-2">
-            <div class="bg-black/90 px-4 py-2 rounded-lg border-2 border-cyan-500 flex items-center gap-2">
-                <span class="text-xs">💎 450,000</span>
-            </div>
-            <button onclick="switchScene('battle')" class="bg-red-600 px-6 py-2 rounded-lg font-black shadow-lg">FIND RIVAL</button>
-        </div>
-    </div>
-
-    <div id="scene-battle" class="scene hidden-scene bg-[#0a0a0a] p-20 flex flex-col justify-center">
-        <div class="flex justify-between items-end mb-10 px-10">
-            <div class="text-left">
-                <p class="text-gray-400 text-xs">YOUR FORMATION</p>
-                <h3 id="player-form-name" class="text-2xl text-yellow-500 font-black italic uppercase">INFANTRY PHALANX</h3>
-            </div>
-            <div class="text-center bg-zinc-900 px-6 py-2 rounded-full border border-white/20">
-                <span class="text-xl font-black italic text-white">VS</span>
-            </div>
-            <div class="text-right">
-                <p class="text-gray-400 text-xs">ENEMY FORMATION</p>
-                <h3 class="text-2xl text-red-500 font-black italic uppercase">CAVALRY PHALANX</h3>
-            </div>
-        </div>
-
-        <div id="war-zone" class="space-y-4">
-            <div class="battle-lane border-l-4 border-red-500">
-                <div class="flex items-center gap-4">
-                    <img src="https://cdn-icons-png.flaticon.com/512/3021/3021703.png" class="troop-icon text-red-500 attacking">
-                    <div>
-                        <p class="text-[10px] text-gray-400">INFANTRY (T4)</p>
-                        <p id="p-inf-count" class="text-2xl font-black">250,000</p>
-                    </div>
-                </div>
-                <div id="inf-status" class="counter-badge win">STRONG VS RANGED</div>
-                <div class="flex items-center gap-4 text-right">
-                    <div>
-                        <p class="text-[10px] text-gray-400">ENEMY INFANTRY</p>
-                        <p id="e-inf-count" class="text-2xl font-black">200,000</p>
-                    </div>
-                    <img src="https://cdn-icons-png.flaticon.com/512/3021/3021703.png" class="troop-icon text-red-500 opacity-50">
-                </div>
-            </div>
-
-            <div class="battle-lane border-l-4 border-blue-500">
-                <div class="flex items-center gap-4">
-                    <img src="https://cdn-icons-png.flaticon.com/512/3133/3133092.png" class="troop-icon text-blue-500 attacking">
-                    <div>
-                        <p class="text-[10px] text-gray-400">RANGED (T4)</p>
-                        <p id="p-ran-count" class="text-2xl font-black">250,000</p>
-                    </div>
-                </div>
-                <div id="ran-status" class="counter-badge">NEUTRAL</div>
-                <div class="flex items-center gap-4 text-right">
-                    <div>
-                        <p class="text-[10px] text-gray-400">ENEMY RANGED</p>
-                        <p id="e-ran-count" class="text-2xl font-black">200,000</p>
-                    </div>
-                    <img src="https://cdn-icons-png.flaticon.com/512/3133/3133092.png" class="troop-icon text-blue-500 opacity-50">
-                </div>
-            </div>
-
-            <div class="battle-lane border-l-4 border-green-500">
-                <div class="flex items-center gap-4">
-                    <img src="https://cdn-icons-png.flaticon.com/512/1065/1065500.png" class="troop-icon text-green-500 attacking">
-                    <div>
-                        <p class="text-[10px] text-gray-400">CAVALRY (T4)</p>
-                        <p id="p-cav-count" class="text-2xl font-black">250,000</p>
-                    </div>
-                </div>
-                <div id="cav-status" class="counter-badge lose">WEAK VS INFANTRY</div>
-                <div class="flex items-center gap-4 text-right">
-                    <div>
-                        <p class="text-[10px] text-gray-400">ENEMY CAVALRY</p>
-                        <p id="e-cav-count" class="text-2xl font-black">200,000</p>
-                    </div>
-                    <img src="https://cdn-icons-png.flaticon.com/512/1065/1065500.png" class="troop-icon text-green-500 opacity-50">
-                </div>
-            </div>
-        </div>
-
-        <div class="mt-12 flex justify-center gap-6">
-            <button id="start-btn" onclick="runWar()" class="px-16 py-4 bg-yellow-600 text-black font-black text-2xl rounded-xl border-b-4 border-yellow-900">ENGAGE ENEMY</button>
-            <button onclick="switchScene('home')" class="px-10 py-4 bg-zinc-800 rounded-xl font-bold">RETREAT</button>
+        
+        <div class="flex gap-2">
+            <div class="bg-black/90 px-4 py-2 rounded-lg border-b-2 border-cyan-500 text-cyan-400 font-black">💎 520,400</div>
+            <div class="bg-black/90 px-4 py-2 rounded-lg border-b-2 border-purple-500 text-purple-400 font-black">⚡ 2,500</div>
         </div>
     </div>
 
-    <div id="scene-home" class="scene bg-[url('https://i.imgur.com/8T8C9po.jpeg')] bg-cover flex items-center justify-center">
-        <div class="text-center bg-black/60 p-20 rounded-3xl backdrop-blur-md border border-white/10">
-            <h1 class="royal text-6xl text-yellow-500 mb-4">CITADEL BRYYCE</h1>
-            <p class="text-gray-300 italic">Military Command Center</p>
+    <div id="view-world" class="viewport bg-[url('https://i.imgur.com/8T8C9po.jpeg')] relative">
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center group cursor-pointer" onclick="openUI('colosseum')">
+            <img src="https://cdn-icons-png.flaticon.com/512/3069/3069512.png" class="w-48 drop-shadow-[0_0_30px_red]">
+            <p class="royal text-red-500 text-xl drop-shadow-lg">ENTER COLOSSEUM</p>
+        </div>
+    </div>
+
+    <div id="ui-colosseum" class="fixed inset-0 z-[2000] hidden flex items-center justify-center p-12 bg-black/90">
+        <div class="panel w-full max-w-6xl h-full flex flex-col overflow-hidden">
+            <div class="p-6 bg-gradient-to-r from-yellow-700 to-yellow-900 flex justify-between">
+                <h2 class="royal text-2xl tracking-widest text-white italic">COLOSSEUM RANK #142</h2>
+                <button onclick="closeUI('colosseum')" class="text-3xl">&times;</button>
+            </div>
+            
+            <div class="arena-grid p-10 flex-1">
+                <div class="flex flex-wrap gap-4 justify-center" id="player-squad">
+                    <div class="hero-slot active attacker"><img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Rose"></div>
+                    <div class="hero-slot active attacker"><img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Oath"></div>
+                    <div class="hero-slot active attacker"><img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Sage"></div>
+                </div>
+
+                <div class="text-center">
+                    <p class="royal text-4xl text-yellow-500">VS</p>
+                    <button onclick="startBattle()" id="battle-btn" class="mt-4 bg-red-600 px-6 py-2 rounded font-black uppercase text-xs">Fight</button>
+                </div>
+
+                <div class="flex flex-wrap gap-4 justify-center" id="enemy-squad">
+                    <div class="hero-slot defender opacity-50"><img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Enemy1"></div>
+                    <div class="hero-slot defender opacity-50"><img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Enemy2"></div>
+                    <div class="hero-slot defender opacity-50"><img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Enemy3"></div>
+                </div>
+            </div>
+
+            <div id="combat-log" class="h-32 bg-black/50 p-4 font-mono text-[10px] text-green-400 overflow-y-auto border-t border-white/10">
+                > System initialized...<br>
+                > Awaiting Lord's command...
+            </div>
+        </div>
+    </div>
+
+    <div class="fixed bottom-0 w-full h-24 bg-gradient-to-t from-black to-transparent flex justify-center items-center gap-12 z-[1000]">
+        <div class="btn-nav text-center" onclick="alert('Academy Open: Research Speed +25% active')">
+            <span class="text-4xl">🧪</span>
+            <p class="text-[9px] text-blue-400 font-bold">ACADEMY</p>
+        </div>
+        <div class="btn-nav text-center" onclick="openUI('colosseum')">
+            <span class="text-5xl">🏆</span>
+            <p class="text-[9px] text-yellow-500 font-bold">COLOSSEUM</p>
+        </div>
+        <div class="btn-nav text-center" onclick="alert('Workshop: Construction Speed +40% active')">
+            <span class="text-4xl">🛠️</span>
+            <p class="text-[9px] text-orange-400 font-bold">WORKSHOP</p>
         </div>
     </div>
 
     <script>
-        let pTroops = { inf: 250000, ran: 250000, cav: 250000 };
-        let eTroops = { inf: 200000, ran: 200000, cav: 200000 };
-        let battleActive = false;
+        function openUI(id) { document.getElementById('ui-' + id).classList.remove('hidden-panel'); }
+        function closeUI(id) { document.getElementById('ui-' + id).classList.add('hidden-panel'); }
 
-        function switchScene(id) {
-            document.querySelectorAll('.scene').forEach(s => s.classList.add('hidden-scene'));
-            document.getElementById('scene-' + id).classList.remove('hidden-scene');
-        }
+        function startBattle() {
+            const log = document.getElementById('combat-log');
+            const btn = document.getElementById('battle-btn');
+            btn.disabled = true;
+            btn.innerText = "Fighting...";
+            
+            let rounds = 0;
+            const events = [
+                "Rose Knight casts Shield!",
+                "Oath Keeper deals 4,500 damage.",
+                "Enemy Trickster is stunned.",
+                "Sovereign team uses Ultimate Skill!",
+                "Enemy line is breaking..."
+            ];
 
-        function runWar() {
-            if(battleActive) return;
-            battleActive = true;
-            document.getElementById('start-btn').innerText = "CLASHING...";
-            document.getElementById('start-btn').classList.add('opacity-50');
+            const itv = setInterval(() => {
+                const line = document.createElement('div');
+                line.innerHTML = `> ${events[rounds % events.length]}`;
+                log.prepend(line);
+                rounds++;
 
-            const loop = setInterval(() => {
-                // Battle Logic: Counters
-                // Inf > Ran | Ran > Cav | Cav > Inf
-                
-                // Player attacks Enemy
-                eTroops.inf -= Math.floor(Math.random() * 2000 + 500); // Base dmg
-                eTroops.ran -= Math.floor(Math.random() * 2500 + 1000); // Player Inf strong vs Ran
-                eTroops.cav -= Math.floor(Math.random() * 1000); // Weakness
-
-                // Enemy attacks Player
-                pTroops.inf -= Math.floor(Math.random() * 1500);
-                pTroops.ran -= Math.floor(Math.random() * 1500);
-                pTroops.cav -= Math.floor(Math.random() * 3000 + 1500); // Enemy Inf strong vs Cav
-
-                updateCounts();
-
-                // Win/Loss Condition
-                const pTotal = pTroops.inf + pTroops.ran + pTroops.cav;
-                const eTotal = eTroops.inf + eTroops.ran + eTroops.cav;
-
-                if(pTotal <= 0 || eTotal <= 0) {
-                    clearInterval(loop);
-                    battleActive = false;
-                    document.getElementById('start-btn').innerText = pTotal > eTotal ? "VICTORY!" : "DEFEAT!";
-                    alert(pTotal > eTotal ? "Enemy Wipeout! You win!" : "Your army has fallen!");
+                if(rounds > 10) {
+                    clearInterval(itv);
+                    log.prepend(document.createElement('div')).innerHTML = "> <span class='text-yellow-500 font-black'>VICTORY! RANK INCREASED TO #88. REWARD: 500 GEMS</span>";
+                    btn.innerText = "Claim Reward";
+                    btn.onclick = () => { location.reload(); };
                 }
-            }, 500);
-        }
-
-        function updateCounts() {
-            document.getElementById('p-inf-count').innerText = Math.max(0, pTroops.inf).toLocaleString();
-            document.getElementById('p-ran-count').innerText = Math.max(0, pTroops.ran).toLocaleString();
-            document.getElementById('p-cav-count').innerText = Math.max(0, pTroops.cav).toLocaleString();
-
-            document.getElementById('e-inf-count').innerText = Math.max(0, eTroops.inf).toLocaleString();
-            document.getElementById('e-ran-count').innerText = Math.max(0, eTroops.ran).toLocaleString();
-            document.getElementById('e-cav-count').innerText = Math.max(0, eTroops.cav).toLocaleString();
+            }, 800);
         }
     </script>
 </body>
