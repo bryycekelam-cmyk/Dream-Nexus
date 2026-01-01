@@ -1,60 +1,56 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
-export default function LordsMobileClone() {
-  const [gems, setGems] = useState(1000);
-  const [level, setLevel] = useState(12);
+export default function GamePortal() {
+  const [isLoaded, setIsLoaded] = useState(false);
   const [pos, setPos] = useState({ x: 2, y: 2 });
+  const [gems, setGems] = useState(1000);
 
-  const move = (dx, dy) => {
-    setPos(prev => ({ x: Math.max(0, Math.min(prev.x + dx, 4)), y: Math.max(0, Math.min(prev.y + dy, 4)) }));
-  };
+  // Trigger a re-render to ensure Tailwind loads
+  useEffect(() => { setIsLoaded(true); }, []);
+
+  if (!isLoaded) return <div className="bg-black h-screen flex items-center justify-center">LOADING KINGDOM...</div>;
 
   return (
-    <div className="h-screen bg-[#1a1c23] flex flex-col font-sans text-white overflow-hidden">
+    <div className="h-screen w-full bg-[#0a0a0a] flex flex-col overflow-hidden select-none">
       
-      {/* --- TOP STATUS BAR --- */}
-      <div className="bg-gradient-to-b from-[#ffd700] to-[#b8860b] p-3 flex justify-between items-center shadow-2xl border-b-2 border-black">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 border-2 border-white rounded-lg bg-slate-800 overflow-hidden shadow-inner">
-            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Lord" alt="Avatar" />
+      {/* TOP UI: LORDS MOBILE STYLE */}
+      <div className="h-20 bg-gradient-to-b from-[#f39c12] to-[#d35400] flex items-center justify-between px-4 border-b-4 border-black shadow-2xl">
+        <div className="flex items-center gap-2">
+          <div className="w-12 h-12 bg-gray-800 rounded border-2 border-white overflow-hidden shadow-lg">
+            <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Lord" className="w-full h-full" alt="Avatar" />
           </div>
           <div>
-            <h1 className="text-black font-black italic text-lg drop-shadow-md">LORD BRYYCE</h1>
-            <div className="w-32 h-3 bg-gray-800 rounded-full border border-black overflow-hidden">
-              <div className="bg-green-500 h-full w-[60%]"></div>
+            <h1 className="text-white font-black text-sm uppercase drop-shadow-md">Lord Bryyce</h1>
+            <div className="bg-blue-900 w-24 h-2 rounded-full border border-black overflow-hidden">
+               <div className="bg-cyan-400 h-full w-3/4"></div>
             </div>
           </div>
         </div>
-        <div className="flex gap-2">
-          <div className="bg-black/40 px-4 py-1 rounded-full border border-white/20 flex items-center gap-2">
-             <span className="text-cyan-400 font-bold">💎 {gems}</span>
-          </div>
-          <button className="bg-[#4caf50] hover:bg-[#45a049] px-4 py-1 rounded-lg font-bold border-b-4 border-green-900 text-sm">
-            UPGRADE
-          </button>
+        <div className="bg-black/50 px-3 py-1 rounded-full border border-yellow-500/50 flex items-center gap-2">
+          <span className="text-yellow-400 font-bold text-sm">💎 {gems}</span>
         </div>
       </div>
 
-      {/* --- THE WORLD MAP (Interactive Grid) --- */}
-      <div className="flex-1 relative bg-[#2d4d2d] border-y-4 border-black overflow-hidden">
-        {/* Grass Pattern Background */}
-        <div className="absolute inset-0 opacity-30" style={{backgroundImage: `url('https://www.transparenttextures.com/patterns/dark-matter.png')`}}></div>
+      {/* THE INTERACTIVE WORLD MAP */}
+      <div className="flex-1 relative bg-[#2d4d2d] overflow-hidden flex items-center justify-center">
+        {/* Visual Background Texture */}
+        <div className="absolute inset-0 opacity-20 pointer-events-none" style={{backgroundImage: `url('https://www.transparenttextures.com/patterns/dark-matter.png')`}}></div>
         
-        <div className="grid grid-cols-5 grid-rows-5 h-full w-full">
+        {/* THE GRID */}
+        <div className="grid grid-cols-5 grid-rows-5 w-[95vw] h-[95vw] max-w-[500px] max-h-[500px] border-2 border-white/10">
           {Array.from({ length: 25 }).map((_, i) => {
             const x = i % 5;
             const y = Math.floor(i / 5);
             const isPlayer = pos.x === x && pos.y === y;
             return (
-              <div key={i} className="border border-white/5 flex items-center justify-center relative">
+              <div key={i} className="border border-black/20 flex items-center justify-center relative bg-green-800/30">
                 {isPlayer ? (
-                  <div className="z-10 animate-bounce">
-                    <img src="https://cdn-icons-png.flaticon.com/512/3021/3021703.png" className="w-16 drop-shadow-[0_10px_10px_rgba(0,0,0,0.5)]" />
-                    <div className="bg-yellow-500 text-[8px] text-black font-bold px-1 rounded absolute -top-2 left-1/2 -translate-x-1/2 uppercase">YOU</div>
+                  <div className="z-50 scale-150 transition-all duration-200">
+                    <img src="https://cdn-icons-png.flaticon.com/512/3021/3021703.png" className="w-12 drop-shadow-2xl" />
                   </div>
                 ) : (
-                  <img src={i % 7 === 0 ? "https://cdn-icons-png.flaticon.com/512/616/616490.png" : ""} className="w-10 opacity-40" />
+                  <div className="opacity-40 text-xs text-green-200/20">{x},{y}</div>
                 )}
               </div>
             );
@@ -62,32 +58,24 @@ export default function LordsMobileClone() {
         </div>
       </div>
 
-      {/* --- CONTROL PANEL --- */}
-      <div className="bg-[#242933] p-4 flex gap-4 items-center border-t-2 border-black">
-        {/* D-PAD */}
-        <div className="grid grid-cols-3 gap-1 bg-black/20 p-2 rounded-xl">
-          <div /> <button onClick={() => move(0, -1)} className="bg-[#f39c12] w-10 h-10 rounded border-b-4 border-orange-900 active:translate-y-1">▲</button> <div />
-          <button onClick={() => move(-1, 0)} className="bg-[#f39c12] w-10 h-10 rounded border-b-4 border-orange-900 active:translate-y-1">◀</button>
-          <button onClick={() => move(0, 1)} className="bg-[#f39c12] w-10 h-10 rounded border-b-4 border-orange-900 active:translate-y-1">▼</button>
-          <button onClick={() => move(1, 0)} className="bg-[#f39c12] w-10 h-10 rounded border-b-4 border-orange-900 active:translate-y-1">▶</button>
+      {/* D-PAD CONTROLS */}
+      <div className="h-48 bg-[#1e272e] p-4 flex gap-6 items-center border-t-4 border-black">
+        <div className="grid grid-cols-3 gap-2">
+          <div /> 
+          <button onClick={() => setPos(p => ({...p, y: Math.max(0, p.y-1)}))} className="w-12 h-12 bg-yellow-600 rounded-lg border-b-4 border-yellow-900 flex items-center justify-center text-2xl active:translate-y-1">▲</button>
+          <div />
+          <button onClick={() => setPos(p => ({...p, x: Math.max(0, p.x-1)}))} className="w-12 h-12 bg-yellow-600 rounded-lg border-b-4 border-yellow-900 flex items-center justify-center text-2xl active:translate-y-1">◀</button>
+          <button onClick={() => setPos(p => ({...p, y: Math.min(4, p.y+1)}))} className="w-12 h-12 bg-yellow-600 rounded-lg border-b-4 border-yellow-900 flex items-center justify-center text-2xl active:translate-y-1">▼</button>
+          <button onClick={() => setPos(p => ({...p, x: Math.min(4, p.x+1)}))} className="w-12 h-12 bg-yellow-600 rounded-lg border-b-4 border-yellow-900 flex items-center justify-center text-2xl active:translate-y-1">▶</button>
         </div>
-
-        {/* QUESTS CARD */}
-        <div className="flex-1 bg-gradient-to-r from-[#34495e] to-[#2c3e50] p-3 rounded-xl border border-white/10 flex justify-between items-center">
-          <div>
-            <p className="text-[10px] text-yellow-500 font-bold uppercase">Active Quest</p>
-            <p className="text-sm font-bold">Defeat the Dark Nest</p>
-          </div>
-          <button onClick={() => setGems(gems + 500)} className="bg-[#e74c3c] text-[10px] font-bold px-3 py-2 rounded border-b-4 border-red-900">CLAIM</button>
+        
+        <div className="flex-1">
+          <button 
+             onClick={() => { setGems(g => g + 100); alert("Collected Resources!"); }}
+             className="w-full bg-green-600 py-4 rounded-xl font-black text-white border-b-4 border-green-900 shadow-lg uppercase tracking-widest">
+             Collect Gold
+          </button>
         </div>
-      </div>
-
-      {/* --- NAV FOOTER --- */}
-      <div className="bg-[#1a1c23] flex justify-around py-3 border-t border-white/5">
-        <div className="flex flex-col items-center opacity-100"><span className="text-xl">🏰</span><span className="text-[8px] font-bold">CITY</span></div>
-        <div className="flex flex-col items-center opacity-50"><span className="text-xl">🛡️</span><span className="text-[8px] font-bold">HEROES</span></div>
-        <div className="flex flex-col items-center opacity-50"><span className="text-xl">🛒</span><span className="text-[8px] font-bold">SHOP</span></div>
-        <div className="flex flex-col items-center opacity-50"><span className="text-xl">📜</span><span className="text-[8px] font-bold">LOGS</span></div>
       </div>
     </div>
   );
