@@ -3,16 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Sovereign Bryyce: Beautiful Empire</title>
+    <title>Sovereign Bryyce: Visual Empire</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@900&family=Oswald:wght@400;700&display=swap');
         body, html { margin: 0; padding: 0; background: #0a0a0c; color: white; font-family: 'Oswald', sans-serif; overflow: hidden; height: 100%; width: 100%; }
         
-        /* THE STABLE VIEWPORT */
         #viewport { width: 100vw; height: 100vh; position: relative; overflow: hidden; z-index: 1; }
-
-        /* THE REINFORCED MAP */
         #world-map { 
             width: 4000px; height: 4000px; 
             background: #151a21 radial-gradient(#2a3441 1px, transparent 1px);
@@ -21,7 +18,6 @@
             will-change: transform; transform: translate(-1800px, -1800px);
         }
 
-        /* CUSTOM ASSET STYLING (No more boring icons!) */
         .castle-player { 
             width: 100px; height: 100px; background: url('https://i.imgur.com/rM7s21j.png') center / contain no-repeat;
             filter: drop-shadow(0 0 15px #60a5fa);
@@ -39,7 +35,6 @@
         .map-node { position: absolute; z-index: 10; cursor: pointer; text-align: center; transform: translate(-50%, -50%); }
         .label { background: rgba(0,0,0,0.85); border: 1px solid #ffd700; color: #ffd700; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-top: 5px; font-weight: bold; }
 
-        /* HUD */
         #ui-overlay { position: fixed; inset: 0; pointer-events: none; z-index: 1000; }
         .ui-btn { pointer-events: auto; cursor: pointer; transition: 0.2s; }
         .ui-btn:hover { transform: scale(1.05); filter: brightness(1.2); }
@@ -51,11 +46,14 @@
         }
         .active-modal { display: flex; }
 
-        /* SHIELD EFFECTS */
-        #player-castle.shielded .castle-player {
-            box-shadow: 0 0 40px rgba(0, 191, 255, 0.7); /* Cyan glowing effect */
-            border: 3px solid cyan; /* Optional: border to highlight shield */
+        /* INVENTORY ITEMS */
+        .item-card { 
+            background: #1a1a1f; border: 1px solid #333; border-radius: 8px; 
+            padding: 10px; display: flex; flex-direction: column; align-items: center; 
+            text-align: center; font-size: 12px; transition: 0.2s;
         }
+        .item-card:hover { border-color: #ffd700; transform: translateY(-3px); box-shadow: 0 0 15px rgba(255,215,0,0.3); }
+        .item-card img { width: 60px; height: 60px; object-fit: contain; margin-bottom: 5px; }
     </style>
 </head>
 <body>
@@ -76,19 +74,33 @@
 
     <div id="ui-overlay">
         <div class="p-4 flex justify-between items-start">
-            <div class="bg-gradient-to-r from-gray-900 to-transparent p-3 border-l-4 border-yellow-500 rounded-r-lg shadow-xl ui-btn">
-                <p class="text-xs text-gray-300">LORD BRYYCE</p>
-                <p class="text-yellow-500 font-bold text-xl">MIGHT: 185.2M</p>
+            <div class="bg-gradient-to-r from-gray-900 to-transparent p-3 border-l-4 border-yellow-500 rounded-r-lg shadow-xl ui-btn flex items-center gap-3">
+                <img src="https://api.dicebear.com/7.x/pixel-art/svg?seed=BryyceAvatar" class="w-12 h-12 rounded-full border-2 border-white/30">
+                <div>
+                    <p class="text-xs text-gray-300">LORD BRYYCE</p>
+                    <p class="text-yellow-500 font-bold text-xl">MIGHT: 185.2M</p>
+                </div>
             </div>
             <div class="flex items-center gap-4">
-                <div class="bg-black/90 px-6 py-2 border-b-2 border-cyan-500 text-cyan-400 font-black text-xl rounded-lg shadow-md ui-btn">💎 520,000</div>
-                <button onclick="toggleModal('mall')" class="bg-gradient-to-br from-purple-700 to-pink-600 px-8 py-3 rounded-full font-black text-sm shadow-lg transform hover:scale-105 transition-all ui-btn">🛒 MALL</button>
+                <div class="bg-black/90 px-6 py-2 border-b-2 border-cyan-500 text-cyan-400 font-black text-xl rounded-lg shadow-md ui-btn flex items-center gap-2">
+                    <img src="https://cdn-icons-png.flaticon.com/512/1065/1065500.png" class="w-6 h-6 invert"> <span>520,000</span>
+                </div>
+                <button onclick="toggleModal('backpack')" class="bg-gradient-to-br from-indigo-700 to-blue-600 px-8 py-3 rounded-full font-black text-sm shadow-lg ui-btn flex items-center gap-2">
+                    <img src="https://cdn-icons-png.flaticon.com/512/2873/2873733.png" class="w-5 h-5 filter invert"> BACKPACK
+                </button>
+                <button onclick="toggleModal('mall')" class="bg-gradient-to-br from-purple-700 to-pink-600 px-8 py-3 rounded-full font-black text-sm shadow-lg ui-btn flex items-center gap-2">
+                    <img src="https://cdn-icons-png.flaticon.com/512/3593/3593452.png" class="w-5 h-5 filter invert"> MALL
+                </button>
             </div>
         </div>
 
         <div class="absolute bottom-44 right-6 flex flex-col gap-3">
-            <button onclick="recallCamera()" class="bg-blue-600 text-white px-5 py-2 rounded-lg font-bold shadow-lg ui-btn hover:bg-blue-700">🏠 RECALL</button>
-            <button onclick="toggleShield()" id="shield-btn" class="bg-emerald-600 text-white px-5 py-2 rounded-lg font-bold shadow-lg ui-btn hover:bg-emerald-700">🛡️ ACTIVATE SHIELD</button>
+            <button onclick="recallCamera()" class="bg-blue-600 text-white px-5 py-2 rounded-lg font-bold shadow-lg ui-btn hover:bg-blue-700">
+                <img src="https://cdn-icons-png.flaticon.com/512/25/25694.png" class="w-5 h-5 inline-block mr-1 invert"> RECALL
+            </button>
+            <button onclick="toggleShield()" id="shield-btn" class="bg-emerald-600 text-white px-5 py-2 rounded-lg font-bold shadow-lg ui-btn hover:bg-emerald-700">
+                <img src="https://cdn-icons-png.flaticon.com/512/2907/2907044.png" class="w-5 h-5 inline-block mr-1 invert"> ACTIVATE SHIELD
+            </button>
         </div>
 
         <div class="absolute bottom-6 left-6 bg-black/90 p-4 border border-white/20 rounded-xl ui-btn flex flex-col gap-2">
@@ -132,6 +144,55 @@
                     <p class="text-gray-300 text-sm">Accelerate your empire's progress.</p>
                     <p class="text-5xl font-black text-white my-6">24hr x5</p>
                     <button onclick="alert('Speedups Granted!')" class="w-full bg-gradient-to-r from-orange-500 to-amber-600 text-white font-black py-4 rounded-full text-xl shadow-md">ACCELERATE</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-backpack" class="modal" onclick="closeAll(event)">
+        <div class="relative bg-gradient-to-br from-gray-900 to-gray-800 w-full max-w-3xl h-[85%] p-10 border-4 border-gray-600 rounded-3xl shadow-2xl" onclick="event.stopPropagation()">
+            <button onclick="toggleModal('backpack')" class="absolute top-4 right-4 text-4xl text-gray-300 hover:text-white">&times;</button>
+            
+            <div class="flex items-center justify-center mb-10">
+                <img src="https://cdn-icons-png.flaticon.com/512/2873/2873733.png" class="w-20 h-20 mr-4 filter invert">
+                <h2 class="royal text-6xl text-transparent bg-clip-text bg-gradient-to-r from-gray-300 to-white">IMPERIAL BACKPACK</h2>
+            </div>
+
+            <div class="grid grid-cols-4 gap-6 overflow-y-auto h-[calc(100%-150px)] pr-4">
+                <div class="item-card">
+                    <img src="https://cdn-icons-png.flaticon.com/512/3238/3238699.png">
+                    <p class="font-bold text-yellow-300">Gold Pouch</p>
+                    <p class="text-gray-400">x 100</p>
+                </div>
+                <div class="item-card">
+                    <img src="https://cdn-icons-png.flaticon.com/512/2884/2884704.png">
+                    <p class="font-bold text-green-300">Wood Crate</p>
+                    <p class="text-gray-400">x 50</p>
+                </div>
+                <div class="item-card">
+                    <img src="https://cdn-icons-png.flaticon.com/512/4819/4819280.png">
+                    <p class="font-bold text-red-300">Food Ration</p>
+                    <p class="text-gray-400">x 200</p>
+                </div>
+                <div class="item-card">
+                    <img src="https://cdn-icons-png.flaticon.com/512/9639/9639088.png">
+                    <p class="font-bold text-cyan-300">24hr Speedup</p>
+                    <p class="text-gray-400">x 5</p>
+                </div>
+                <div class="item-card">
+                    <img src="https://cdn-icons-png.flaticon.com/512/2907/2907044.png">
+                    <p class="font-bold text-blue-300">Protection Shield</p>
+                    <p class="text-gray-400">x 3</p>
+                </div>
+                <div class="item-card">
+                    <img src="https://cdn-icons-png.flaticon.com/512/2907/2907572.png">
+                    <p class="font-bold text-purple-300">T4 Troop Scroll</p>
+                    <p class="text-gray-400">x 1</p>
+                </div>
+                <div class="item-card">
+                    <img src="https://cdn-icons-png.flaticon.com/512/6120/6120306.png">
+                    <p class="font-bold text-orange-300">Teleport Scroll</p>
+                    <p class="text-gray-400">x 10</p>
                 </div>
             </div>
         </div>
@@ -238,13 +299,13 @@
             isShieldActive = !isShieldActive;
             if (isShieldActive) {
                 castle.classList.add('shielded');
-                shieldBtn.innerText = "🛡️ SHIELD ACTIVE (24h)";
+                shieldBtn.innerHTML = '<img src="https://cdn-icons-png.flaticon.com/512/2907/2907044.png" class="w-5 h-5 inline-block mr-1 invert"> SHIELD ACTIVE (24h)';
                 shieldBtn.classList.remove('bg-emerald-600', 'hover:bg-emerald-700');
                 shieldBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
                 alert("Your castle is now protected for 24 hours!");
             } else {
                 castle.classList.remove('shielded');
-                shieldBtn.innerText = "🛡️ ACTIVATE SHIELD";
+                shieldBtn.innerHTML = '<img src="https://cdn-icons-png.flaticon.com/512/2907/2907044.png" class="w-5 h-5 inline-block mr-1 invert"> ACTIVATE SHIELD';
                 shieldBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
                 shieldBtn.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
                 alert("Shield deactivated. Beware, my Lord!");
