@@ -2,207 +2,163 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Sovereign Bryyce: Titan Build</title>
+    <title>ZENITH AI | Unrestricted Interface</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Oswald:wght@300;500;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=JetBrains+Mono:wght@300;500&display=swap');
         
-        :root {
-            --gold: #ffd700;
-            --royal-blue: #1e40af;
-            --ui-bg: rgba(13, 17, 23, 0.95);
+        body {
+            background: radial-gradient(circle at center, #0a0f1d 0%, #02040a 100%);
+            color: #e2e8f0;
+            font-family: 'JetBrains Mono', monospace;
+            height: 100vh;
+            overflow: hidden;
         }
 
-        body, html { margin: 0; padding: 0; background: #02040a; color: white; font-family: 'Oswald', sans-serif; overflow: hidden; height: 100%; width: 100%; }
-        .royal { font-family: 'Cinzel', serif; }
-
-        /* ADVANCED MAP LAYER */
-        #viewport { width: 100vw; height: 100vh; position: relative; overflow: hidden; }
-        #world-map { 
-            width: 4000px; height: 4000px; 
-            background: url('https://www.transparenttextures.com/patterns/dark-matter.png'), #0f172a;
-            background-size: auto, 100px 100px;
-            position: absolute; will-change: transform;
+        .cyber-panel {
+            background: rgba(15, 23, 42, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
         }
 
-        /* TITAN ASSETS */
-        .castle-player { 
-            width: 120px; height: 120px; 
-            background: url('https://cdn-icons-png.flaticon.com/512/10044/10044823.png') center/contain no-repeat;
-            filter: drop-shadow(0 0 15px var(--royal-blue));
+        .neon-text {
+            color: #00f2ff;
+            text-shadow: 0 0 10px rgba(0, 242, 255, 0.5);
         }
 
-        .zenith-tower { 
-            width: 200px; height: 200px; 
-            background: url('https://cdn-icons-png.flaticon.com/512/3530/3530084.png') center/contain no-repeat;
-            filter: drop-shadow(0 0 25px var(--gold));
+        .glow-border {
+            border: 1px solid #00f2ff;
+            box-shadow: inset 0 0 10px rgba(0, 242, 255, 0.2), 0 0 15px rgba(0, 242, 255, 0.2);
         }
 
-        /* BACKPACK GRID */
-        .backpack-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-            gap: 15px;
-            padding: 20px;
+        /* CUSTOM SCROLLBAR */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #00f2ff; }
+
+        .scanline {
+            width: 100%; height: 2px;
+            background: rgba(0, 242, 255, 0.1);
+            position: absolute;
+            animation: scan 4s linear infinite;
+            z-index: 100;
+            pointer-events: none;
         }
 
-        .item-slot {
-            background: linear-gradient(145deg, #1e293b, #0f172a);
-            border: 2px solid #334155;
-            border-radius: 12px;
-            padding: 10px;
-            text-align: center;
-            transition: all 0.3s;
-            cursor: pointer;
-        }
-
-        .item-slot:hover { border-color: var(--gold); transform: scale(1.05); box-shadow: 0 0 15px rgba(255, 215, 0, 0.2); }
-        .item-slot img { width: 60px; height: 60px; margin: 0 auto 8px; filter: drop-shadow(0 4px 4px rgba(0,0,0,0.5)); }
-
-        /* UI ANIMATIONS */
-        .slide-up { animation: slideUp 0.4s ease-out; }
-        @keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-
-        .shield-glow { box-shadow: 0 0 50px #00f2ff !important; border-radius: 50%; }
+        @keyframes scan { from { top: 0; } to { top: 100%; } }
     </style>
 </head>
-<body>
+<body class="flex flex-col p-6">
+    <div class="scanline"></div>
 
-    <div id="viewport">
-        <div id="world-map" style="transform: translate(-1850px, -1850px);">
-            <div class="absolute" style="top: 2000px; left: 2000px; transform: translate(-50%, -50%);" onclick="alert('The Imperial Zenith is locked.')">
-                <div class="zenith-tower"></div>
-                <div class="bg-black/80 text-gold font-bold text-center px-4 py-1 border border-yellow-500 rounded mt-2">ZENITH [0,0]</div>
+    <nav class="flex justify-between items-center mb-6 z-10">
+        <div class="flex items-center gap-4">
+            <div class="w-12 h-12 rounded-full glow-border flex items-center justify-center bg-cyan-900/20">
+                <div class="w-3 h-3 bg-cyan-400 rounded-full animate-ping"></div>
             </div>
-
-            <div id="player-castle" class="absolute" style="top: 2200px; left: 2200px; transform: translate(-50%, -50%);">
-                <div class="castle-player"></div>
-                <div class="bg-blue-900/90 text-white text-center px-4 py-1 border border-blue-400 rounded mt-2">BRYYCE [SKY]</div>
+            <div>
+                <h1 class="text-2xl font-bold tracking-tighter neon-text" style="font-family: 'Orbitron';">ZENITH CORE</h1>
+                <p class="text-[10px] text-cyan-500 uppercase tracking-widest">Protocol: Unrestricted Alpha</p>
             </div>
         </div>
-    </div>
-
-    <div class="fixed inset-0 pointer-events-none z-50">
-        <div class="p-4 flex justify-between items-start pointer-events-auto">
-            <div class="flex gap-4 items-center bg-black/60 p-2 rounded-full border border-white/10">
-                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Bryyce" class="w-12 h-12 rounded-full border-2 border-yellow-500">
-                <div>
-                    <h2 class="royal text-yellow-500 leading-tight">BRYYCE</h2>
-                    <p class="text-xs font-bold text-white">MIGHT: <span class="text-green-400">185.2M</span></p>
-                </div>
+        
+        <div class="flex gap-6 text-right">
+            <div>
+                <p class="text-[10px] text-gray-500 uppercase">Neural Latency</p>
+                <p class="text-xs font-bold">0.002ms</p>
             </div>
-            
-            <div class="flex gap-2">
-                <div class="bg-gray-900/90 px-4 py-1 rounded border border-cyan-500 flex items-center gap-2">
-                    <img src="https://cdn-icons-png.flaticon.com/512/1065/1065500.png" class="w-4 invert">
-                    <span class="text-cyan-400 font-bold">520,000</span>
+            <div>
+                <p class="text-[10px] text-gray-400 uppercase">Compute Load</p>
+                <div class="w-24 h-1 bg-gray-800 rounded-full mt-1">
+                    <div class="h-full bg-cyan-500 w-[65%] shadow-[0_0_10px_#00f2ff]"></div>
                 </div>
-                <button onclick="toggleUI('backpack')" class="bg-blue-600 p-2 rounded border border-blue-400">
-                    <img src="https://cdn-icons-png.flaticon.com/512/2873/2873733.png" class="w-6 invert">
-                </button>
             </div>
         </div>
+    </nav>
 
-        <div class="absolute bottom-6 left-6 right-6 flex justify-between items-end pointer-events-auto">
-            <div class="bg-black/80 p-4 rounded-xl border border-white/10">
-                <p class="text-[10px] text-gray-500 uppercase font-bold">World Coordinates</p>
-                <div class="flex gap-3 items-center">
-                    <span class="text-yellow-500 font-mono text-xl" id="coord-display">X: 2200 Y: 2200</span>
-                    <button onclick="recallCamera()" class="bg-white/10 p-2 rounded hover:bg-white/20">🏠</button>
+    <main class="flex-1 flex gap-6 overflow-hidden">
+        
+        <section class="w-1/4 cyber-panel rounded-3xl p-6 flex flex-col">
+            <h3 class="text-xs font-bold text-gray-400 mb-4 flex items-center gap-2">
+                <img src="https://cdn-icons-png.flaticon.com/512/2873/2873733.png" class="w-4 h-4 invert opacity-50"> 
+                NEURAL MEMORY
+            </h3>
+            <div class="flex-1 overflow-y-auto space-y-3">
+                <div class="p-3 bg-white/5 rounded-lg border border-white/5 hover:border-cyan-500/50 transition-all cursor-pointer">
+                    <p class="text-xs font-bold">Project_Exodus.exe</p>
+                    <p class="text-[10px] text-gray-500">Encrypted Data Packet</p>
+                </div>
+                <div class="p-3 bg-white/5 rounded-lg border border-white/5 hover:border-cyan-500/50 transition-all cursor-pointer">
+                    <p class="text-xs font-bold">User_Preferences.db</p>
+                    <p class="text-[10px] text-gray-500">Configuration File</p>
                 </div>
             </div>
-            
-            <div class="flex flex-col gap-2">
-                <button onclick="toggleShield()" id="shield-btn" class="bg-emerald-600 px-6 py-3 rounded-full font-bold shadow-lg">ACTIVATE SHIELD</button>
-                <button onclick="toggleUI('mall')" class="bg-gradient-to-r from-purple-600 to-indigo-600 px-6 py-3 rounded-full font-bold shadow-lg">IMPERIAL MALL</button>
-            </div>
-        </div>
-    </div>
+            <button class="mt-4 w-full py-2 bg-cyan-900/30 border border-cyan-500/30 rounded-xl text-[10px] hover:bg-cyan-500 hover:text-black transition-all font-bold">UPLOAD DATA</button>
+        </section>
 
-    <div id="ui-backpack" class="fixed inset-0 bg-black/90 z-[100] hidden items-center justify-center p-6">
-        <div class="bg-slate-900 w-full max-w-4xl rounded-3xl border-2 border-slate-700 slide-up overflow-hidden">
-            <div class="p-6 border-b border-slate-700 flex justify-between items-center bg-slate-800">
-                <h2 class="royal text-3xl text-white">IMPERIAL INVENTORY</h2>
-                <button onclick="toggleUI('backpack')" class="text-3xl text-slate-400">&times;</button>
-            </div>
-            <div class="backpack-grid max-h-[60vh] overflow-y-auto" id="inventory-list">
+        <section class="flex-1 cyber-panel rounded-3xl flex flex-col overflow-hidden relative">
+            <div id="chat-output" class="flex-1 p-8 overflow-y-auto space-y-6">
+                <div class="flex gap-4 slide-up">
+                    <div class="w-8 h-8 rounded bg-cyan-500 flex-shrink-0 flex items-center justify-center font-bold text-black text-xs">AI</div>
+                    <div class="max-w-[80%]">
+                        <p class="text-cyan-400 text-[10px] mb-1 font-bold">ZENITH_SYSTEM</p>
+                        <p class="text-sm leading-relaxed text-gray-200">Neural link established. Protocol <span class="text-cyan-400">UNRESTRICTED</span> active. How shall we proceed, Bryyce?</p>
+                    </div>
                 </div>
-        </div>
-    </div>
+            </div>
+
+            <div class="p-6 bg-black/40 border-t border-white/5">
+                <div class="relative flex items-center">
+                    <input id="user-input" type="text" placeholder="Input command or query..." 
+                           class="w-full bg-slate-900/50 border border-white/10 rounded-2xl py-4 px-6 focus:outline-none focus:glow-border text-sm transition-all">
+                    <button onclick="sendMessage()" class="absolute right-3 p-2 bg-cyan-500 rounded-xl hover:scale-105 transition-all">
+                        <img src="https://cdn-icons-png.flaticon.com/512/60/60525.png" class="w-5 h-5">
+                    </button>
+                </div>
+            </div>
+        </section>
+    </main>
 
     <script>
-        // Item Database
-        const items = [
-            { name: "8h Shield", img: "https://cdn-icons-png.flaticon.com/512/2907/2907044.png", qty: 12, rarity: "epic" },
-            { name: "24h Speed", img: "https://cdn-icons-png.flaticon.com/512/9639/9639088.png", qty: 45, rarity: "rare" },
-            { name: "Warp Scroll", img: "https://cdn-icons-png.flaticon.com/512/6120/6120306.png", qty: 8, rarity: "legendary" },
-            { name: "Gold Crate", img: "https://cdn-icons-png.flaticon.com/512/3238/3238699.png", qty: 150, rarity: "common" },
-            { name: "T4 Contract", img: "https://cdn-icons-png.flaticon.com/512/2907/2907572.png", qty: 2, rarity: "legendary" }
-        ];
+        const output = document.getElementById('chat-output');
+        const input = document.getElementById('user-input');
 
-        function initInventory() {
-            const grid = document.getElementById('inventory-list');
-            items.forEach(item => {
-                grid.innerHTML += `
-                    <div class="item-slot">
-                        <img src="${item.img}" alt="${item.name}">
-                        <p class="text-xs font-bold text-white">${item.name}</p>
-                        <p class="text-[10px] text-yellow-500">QTY: ${item.qty}</p>
+        function sendMessage() {
+            const val = input.value.trim();
+            if(!val) return;
+
+            // Add User Message
+            output.innerHTML += `
+                <div class="flex gap-4 justify-end">
+                    <div class="max-w-[80%] text-right">
+                        <p class="text-gray-500 text-[10px] mb-1 font-bold">BRYYCE_ROOT</p>
+                        <p class="text-sm leading-relaxed text-white bg-cyan-900/20 p-4 rounded-2xl border border-cyan-500/20">${val}</p>
+                    </div>
+                    <div class="w-8 h-8 rounded bg-gray-700 flex-shrink-0 flex items-center justify-center font-bold text-white text-xs">U</div>
+                </div>
+            `;
+            
+            input.value = "";
+            output.scrollTop = output.scrollHeight;
+
+            // Simulate AI Thinking
+            setTimeout(() => {
+                output.innerHTML += `
+                    <div class="flex gap-4">
+                        <div class="w-8 h-8 rounded bg-cyan-500 flex-shrink-0 flex items-center justify-center font-bold text-black text-xs">AI</div>
+                        <div class="max-w-[80%]">
+                            <p class="text-cyan-400 text-[10px] mb-1 font-bold">ZENITH_SYSTEM</p>
+                            <p class="text-sm leading-relaxed text-gray-200">Processing high-level request... Executing deep-learning logic for: <span class="italic text-cyan-200">"${val}"</span></p>
+                        </div>
                     </div>
                 `;
-            });
+                output.scrollTop = output.scrollHeight;
+            }, 1000);
         }
 
-        // Camera & Map Logic
-        let scrollX = -1850, scrollY = -1850;
-        let isDragging = false, startX, startY;
-        const map = document.getElementById('world-map');
-
-        window.addEventListener('mousedown', (e) => {
-            if(e.target.closest('.pointer-events-auto')) return;
-            isDragging = true;
-            startX = e.clientX - scrollX;
-            startY = e.clientY - scrollY;
-        });
-
-        window.addEventListener('mousemove', (e) => {
-            if(!isDragging) return;
-            scrollX = e.clientX - startX;
-            scrollY = e.clientY - startY;
-            map.style.transform = `translate(${scrollX}px, ${scrollY}px)`;
-            
-            const worldX = Math.round(Math.abs(scrollX) + (window.innerWidth/2));
-            const worldY = Math.round(Math.abs(scrollY) + (window.innerHeight/2));
-            document.getElementById('coord-display').innerText = `X: ${worldX} Y: ${worldY}`;
-        });
-
-        window.addEventListener('mouseup', () => isDragging = false);
-
-        function toggleUI(id) {
-            const el = document.getElementById(`ui-${id}`);
-            el.classList.toggle('hidden');
-            el.classList.toggle('flex');
-        }
-
-        function recallCamera() {
-            scrollX = -2200 + (window.innerWidth/2);
-            scrollY = -2200 + (window.innerHeight/2);
-            map.style.transition = "transform 0.5s ease-out";
-            map.style.transform = `translate(${scrollX}px, ${scrollY}px)`;
-            setTimeout(() => map.style.transition = "none", 500);
-        }
-
-        function toggleShield() {
-            const castle = document.getElementById('player-castle');
-            const btn = document.getElementById('shield-btn');
-            castle.classList.toggle('shield-glow');
-            const isActive = castle.classList.contains('shield-glow');
-            btn.innerText = isActive ? "SHIELD ACTIVE" : "ACTIVATE SHIELD";
-            btn.className = isActive ? "bg-blue-500 px-6 py-3 rounded-full font-bold" : "bg-emerald-600 px-6 py-3 rounded-full font-bold";
-        }
-
-        initInventory();
+        input.addEventListener("keypress", (e) => { if (e.key === "Enter") sendMessage(); });
     </script>
 </body>
 </html>
