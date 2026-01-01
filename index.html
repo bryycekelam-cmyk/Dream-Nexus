@@ -3,314 +3,206 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Sovereign Bryyce: Visual Empire</title>
+    <title>Sovereign Bryyce: Titan Build</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@900&family=Oswald:wght@400;700&display=swap');
-        body, html { margin: 0; padding: 0; background: #0a0a0c; color: white; font-family: 'Oswald', sans-serif; overflow: hidden; height: 100%; width: 100%; }
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Oswald:wght@300;500;700&display=swap');
         
-        #viewport { width: 100vw; height: 100vh; position: relative; overflow: hidden; z-index: 1; }
+        :root {
+            --gold: #ffd700;
+            --royal-blue: #1e40af;
+            --ui-bg: rgba(13, 17, 23, 0.95);
+        }
+
+        body, html { margin: 0; padding: 0; background: #02040a; color: white; font-family: 'Oswald', sans-serif; overflow: hidden; height: 100%; width: 100%; }
+        .royal { font-family: 'Cinzel', serif; }
+
+        /* ADVANCED MAP LAYER */
+        #viewport { width: 100vw; height: 100vh; position: relative; overflow: hidden; }
         #world-map { 
             width: 4000px; height: 4000px; 
-            background: #151a21 radial-gradient(#2a3441 1px, transparent 1px);
-            background-size: 50px 50px;
-            position: absolute; top: 0; left: 0;
-            will-change: transform; transform: translate(-1800px, -1800px);
+            background: url('https://www.transparenttextures.com/patterns/dark-matter.png'), #0f172a;
+            background-size: auto, 100px 100px;
+            position: absolute; will-change: transform;
         }
 
+        /* TITAN ASSETS */
         .castle-player { 
-            width: 100px; height: 100px; background: url('https://i.imgur.com/rM7s21j.png') center / contain no-repeat;
-            filter: drop-shadow(0 0 15px #60a5fa);
-            animation: pulse-castle 2s infinite alternate;
+            width: 120px; height: 120px; 
+            background: url('https://cdn-icons-png.flaticon.com/512/10044/10044823.png') center/contain no-repeat;
+            filter: drop-shadow(0 0 15px var(--royal-blue));
         }
-        @keyframes pulse-castle { 0% { transform: scale(1); filter: drop-shadow(0 0 10px #60a5fa); } 100% { transform: scale(1.05); filter: drop-shadow(0 0 25px #3b82f6); } }
-        
+
         .zenith-tower { 
-            width: 180px; height: 180px; background: url('https://i.imgur.com/vHq7FfN.png') center / contain no-repeat;
-            filter: drop-shadow(0 0 20px #fbbf24); 
-            animation: pulse-zenith 2.5s infinite alternate;
+            width: 200px; height: 200px; 
+            background: url('https://cdn-icons-png.flaticon.com/512/3530/3530084.png') center/contain no-repeat;
+            filter: drop-shadow(0 0 25px var(--gold));
         }
-        @keyframes pulse-zenith { 0% { transform: scale(1); filter: drop-shadow(0 0 20px #fbbf24); } 100% { transform: scale(1.07); filter: drop-shadow(0 0 40px #f59e0b); } }
 
-        .map-node { position: absolute; z-index: 10; cursor: pointer; text-align: center; transform: translate(-50%, -50%); }
-        .label { background: rgba(0,0,0,0.85); border: 1px solid #ffd700; color: #ffd700; padding: 2px 8px; border-radius: 4px; font-size: 11px; margin-top: 5px; font-weight: bold; }
-
-        #ui-overlay { position: fixed; inset: 0; pointer-events: none; z-index: 1000; }
-        .ui-btn { pointer-events: auto; cursor: pointer; transition: 0.2s; }
-        .ui-btn:hover { transform: scale(1.05); filter: brightness(1.2); }
-
-        /* MODALS */
-        .modal { 
-            position: fixed; inset: 0; background: rgba(0,0,0,0.92); 
-            z-index: 2000; display: none; align-items: center; justify-content: center; pointer-events: auto;
+        /* BACKPACK GRID */
+        .backpack-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 15px;
+            padding: 20px;
         }
-        .active-modal { display: flex; }
 
-        /* INVENTORY ITEMS */
-        .item-card { 
-            background: #1a1a1f; border: 1px solid #333; border-radius: 8px; 
-            padding: 10px; display: flex; flex-direction: column; align-items: center; 
-            text-align: center; font-size: 12px; transition: 0.2s;
+        .item-slot {
+            background: linear-gradient(145deg, #1e293b, #0f172a);
+            border: 2px solid #334155;
+            border-radius: 12px;
+            padding: 10px;
+            text-align: center;
+            transition: all 0.3s;
+            cursor: pointer;
         }
-        .item-card:hover { border-color: #ffd700; transform: translateY(-3px); box-shadow: 0 0 15px rgba(255,215,0,0.3); }
-        .item-card img { width: 60px; height: 60px; object-fit: contain; margin-bottom: 5px; }
+
+        .item-slot:hover { border-color: var(--gold); transform: scale(1.05); box-shadow: 0 0 15px rgba(255, 215, 0, 0.2); }
+        .item-slot img { width: 60px; height: 60px; margin: 0 auto 8px; filter: drop-shadow(0 4px 4px rgba(0,0,0,0.5)); }
+
+        /* UI ANIMATIONS */
+        .slide-up { animation: slideUp 0.4s ease-out; }
+        @keyframes slideUp { from { transform: translateY(50px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        .shield-glow { box-shadow: 0 0 50px #00f2ff !important; border-radius: 50%; }
     </style>
 </head>
 <body>
 
     <div id="viewport">
-        <div id="world-map">
-            <div class="map-node" style="top: 2000px; left: 2000px;" onclick="focusObj('Zenith')">
+        <div id="world-map" style="transform: translate(-1850px, -1850px);">
+            <div class="absolute" style="top: 2000px; left: 2000px; transform: translate(-50%, -50%);" onclick="alert('The Imperial Zenith is locked.')">
                 <div class="zenith-tower"></div>
-                <div class="label">THE WORLD ZENITH</div>
+                <div class="bg-black/80 text-gold font-bold text-center px-4 py-1 border border-yellow-500 rounded mt-2">ZENITH [0,0]</div>
             </div>
 
-            <div id="player-castle" class="map-node" style="top: 2200px; left: 2200px;" onclick="focusObj('Home')">
+            <div id="player-castle" class="absolute" style="top: 2200px; left: 2200px; transform: translate(-50%, -50%);">
                 <div class="castle-player"></div>
-                <div class="label">BRYYCE [SKY]</div>
+                <div class="bg-blue-900/90 text-white text-center px-4 py-1 border border-blue-400 rounded mt-2">BRYYCE [SKY]</div>
             </div>
         </div>
     </div>
 
-    <div id="ui-overlay">
-        <div class="p-4 flex justify-between items-start">
-            <div class="bg-gradient-to-r from-gray-900 to-transparent p-3 border-l-4 border-yellow-500 rounded-r-lg shadow-xl ui-btn flex items-center gap-3">
-                <img src="https://api.dicebear.com/7.x/pixel-art/svg?seed=BryyceAvatar" class="w-12 h-12 rounded-full border-2 border-white/30">
+    <div class="fixed inset-0 pointer-events-none z-50">
+        <div class="p-4 flex justify-between items-start pointer-events-auto">
+            <div class="flex gap-4 items-center bg-black/60 p-2 rounded-full border border-white/10">
+                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Bryyce" class="w-12 h-12 rounded-full border-2 border-yellow-500">
                 <div>
-                    <p class="text-xs text-gray-300">LORD BRYYCE</p>
-                    <p class="text-yellow-500 font-bold text-xl">MIGHT: 185.2M</p>
+                    <h2 class="royal text-yellow-500 leading-tight">BRYYCE</h2>
+                    <p class="text-xs font-bold text-white">MIGHT: <span class="text-green-400">185.2M</span></p>
                 </div>
             </div>
-            <div class="flex items-center gap-4">
-                <div class="bg-black/90 px-6 py-2 border-b-2 border-cyan-500 text-cyan-400 font-black text-xl rounded-lg shadow-md ui-btn flex items-center gap-2">
-                    <img src="https://cdn-icons-png.flaticon.com/512/1065/1065500.png" class="w-6 h-6 invert"> <span>520,000</span>
-                </div>
-                <button onclick="toggleModal('backpack')" class="bg-gradient-to-br from-indigo-700 to-blue-600 px-8 py-3 rounded-full font-black text-sm shadow-lg ui-btn flex items-center gap-2">
-                    <img src="https://cdn-icons-png.flaticon.com/512/2873/2873733.png" class="w-5 h-5 filter invert"> BACKPACK
-                </button>
-                <button onclick="toggleModal('mall')" class="bg-gradient-to-br from-purple-700 to-pink-600 px-8 py-3 rounded-full font-black text-sm shadow-lg ui-btn flex items-center gap-2">
-                    <img src="https://cdn-icons-png.flaticon.com/512/3593/3593452.png" class="w-5 h-5 filter invert"> MALL
-                </button>
-            </div>
-        </div>
-
-        <div class="absolute bottom-44 right-6 flex flex-col gap-3">
-            <button onclick="recallCamera()" class="bg-blue-600 text-white px-5 py-2 rounded-lg font-bold shadow-lg ui-btn hover:bg-blue-700">
-                <img src="https://cdn-icons-png.flaticon.com/512/25/25694.png" class="w-5 h-5 inline-block mr-1 invert"> RECALL
-            </button>
-            <button onclick="toggleShield()" id="shield-btn" class="bg-emerald-600 text-white px-5 py-2 rounded-lg font-bold shadow-lg ui-btn hover:bg-emerald-700">
-                <img src="https://cdn-icons-png.flaticon.com/512/2907/2907044.png" class="w-5 h-5 inline-block mr-1 invert"> ACTIVATE SHIELD
-            </button>
-        </div>
-
-        <div class="absolute bottom-6 left-6 bg-black/90 p-4 border border-white/20 rounded-xl ui-btn flex flex-col gap-2">
-            <p class="text-[10px] text-gray-400 uppercase">Current Sector</p>
-            <p class="text-yellow-500 font-bold font-mono text-lg">X: <span id="ui-x">2200</span> Y: <span id="ui-y">2200</span></p>
+            
             <div class="flex gap-2">
-                <input id="tp-x" type="number" placeholder="X" class="w-20 bg-zinc-800 p-2 text-sm rounded">
-                <input id="tp-y" type="number" placeholder="Y" class="w-20 bg-zinc-800 p-2 text-sm rounded">
-                <button onclick="teleport()" class="bg-cyan-700 px-4 rounded font-bold text-sm hover:bg-cyan-800">WARP</button>
+                <div class="bg-gray-900/90 px-4 py-1 rounded border border-cyan-500 flex items-center gap-2">
+                    <img src="https://cdn-icons-png.flaticon.com/512/1065/1065500.png" class="w-4 invert">
+                    <span class="text-cyan-400 font-bold">520,000</span>
+                </div>
+                <button onclick="toggleUI('backpack')" class="bg-blue-600 p-2 rounded border border-blue-400">
+                    <img src="https://cdn-icons-png.flaticon.com/512/2873/2873733.png" class="w-6 invert">
+                </button>
+            </div>
+        </div>
+
+        <div class="absolute bottom-6 left-6 right-6 flex justify-between items-end pointer-events-auto">
+            <div class="bg-black/80 p-4 rounded-xl border border-white/10">
+                <p class="text-[10px] text-gray-500 uppercase font-bold">World Coordinates</p>
+                <div class="flex gap-3 items-center">
+                    <span class="text-yellow-500 font-mono text-xl" id="coord-display">X: 2200 Y: 2200</span>
+                    <button onclick="recallCamera()" class="bg-white/10 p-2 rounded hover:bg-white/20">🏠</button>
+                </div>
+            </div>
+            
+            <div class="flex flex-col gap-2">
+                <button onclick="toggleShield()" id="shield-btn" class="bg-emerald-600 px-6 py-3 rounded-full font-bold shadow-lg">ACTIVATE SHIELD</button>
+                <button onclick="toggleUI('mall')" class="bg-gradient-to-r from-purple-600 to-indigo-600 px-6 py-3 rounded-full font-bold shadow-lg">IMPERIAL MALL</button>
             </div>
         </div>
     </div>
 
-    <div id="modal-mall" class="modal" onclick="closeAll(event)">
-        <div class="relative bg-gradient-to-br from-purple-900 to-indigo-900 w-full max-w-4xl h-[90%] p-10 border-4 border-purple-500 rounded-3xl shadow-2xl" onclick="event.stopPropagation()">
-            <button onclick="toggleModal('mall')" class="absolute top-4 right-4 text-4xl text-gray-300 hover:text-white">&times;</button>
-            
-            <div class="flex items-center justify-center mb-10">
-                <img src="https://cdn-icons-png.flaticon.com/512/3593/3593452.png" class="w-20 h-20 mr-4 filter drop-shadow(0 0 15px magenta)">
-                <h2 class="royal text-6xl text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 to-orange-500">IMPERIAL MARKET</h2>
+    <div id="ui-backpack" class="fixed inset-0 bg-black/90 z-[100] hidden items-center justify-center p-6">
+        <div class="bg-slate-900 w-full max-w-4xl rounded-3xl border-2 border-slate-700 slide-up overflow-hidden">
+            <div class="p-6 border-b border-slate-700 flex justify-between items-center bg-slate-800">
+                <h2 class="royal text-3xl text-white">IMPERIAL INVENTORY</h2>
+                <button onclick="toggleUI('backpack')" class="text-3xl text-slate-400">&times;</button>
             </div>
-
-            <div class="grid grid-cols-2 lg:grid-cols-3 gap-8 overflow-y-auto h-[calc(100%-150px)] pr-4">
-                <div class="bg-purple-900/50 backdrop-blur-sm p-8 rounded-xl border border-purple-700 shadow-lg text-center transform hover:scale-105 transition-all duration-200">
-                    <img src="https://cdn-icons-png.flaticon.com/512/1065/1065500.png" class="w-24 mx-auto mb-4 filter drop-shadow(0 0 10px cyan)">
-                    <h3 class="text-3xl font-bold text-cyan-400 mb-2">💎 Gem Bundle</h3>
-                    <p class="text-gray-300 text-sm">A treasure chest of pure magic.</p>
-                    <p class="text-5xl font-black text-white my-6">100K</p>
-                    <button onclick="alert('Gems Acquired!')" class="w-full bg-gradient-to-r from-green-500 to-teal-600 text-white font-black py-4 rounded-full text-xl shadow-md">BUY NOW</button>
+            <div class="backpack-grid max-h-[60vh] overflow-y-auto" id="inventory-list">
                 </div>
-                <div class="bg-purple-900/50 backdrop-blur-sm p-8 rounded-xl border border-purple-700 shadow-lg text-center transform hover:scale-105 transition-all duration-200">
-                    <img src="https://cdn-icons-png.flaticon.com/512/2907/2907572.png" class="w-24 mx-auto mb-4 filter drop-shadow(0 0 10px red)">
-                    <h3 class="text-3xl font-bold text-red-400 mb-2">⚔️ Troop Pack</h3>
-                    <p class="text-gray-300 text-sm">Elite soldiers ready for battle.</p>
-                    <p class="text-5xl font-black text-white my-6">50K T4</p>
-                    <button onclick="alert('Troops Recruited!')" class="w-full bg-gradient-to-r from-red-500 to-pink-600 text-white font-black py-4 rounded-full text-xl shadow-md">RECRUIT</button>
-                </div>
-                <div class="bg-purple-900/50 backdrop-blur-sm p-8 rounded-xl border border-purple-700 shadow-lg text-center transform hover:scale-105 transition-all duration-200">
-                    <img src="https://cdn-icons-png.flaticon.com/512/9639/9639088.png" class="w-24 mx-auto mb-4 filter drop-shadow(0 0 10px gold)">
-                    <h3 class="text-3xl font-bold text-yellow-400 mb-2">⚡ Speedup Crate</h3>
-                    <p class="text-gray-300 text-sm">Accelerate your empire's progress.</p>
-                    <p class="text-5xl font-black text-white my-6">24hr x5</p>
-                    <button onclick="alert('Speedups Granted!')" class="w-full bg-gradient-to-r from-orange-500 to-amber-600 text-white font-black py-4 rounded-full text-xl shadow-md">ACCELERATE</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div id="modal-backpack" class="modal" onclick="closeAll(event)">
-        <div class="relative bg-gradient-to-br from-gray-900 to-gray-800 w-full max-w-3xl h-[85%] p-10 border-4 border-gray-600 rounded-3xl shadow-2xl" onclick="event.stopPropagation()">
-            <button onclick="toggleModal('backpack')" class="absolute top-4 right-4 text-4xl text-gray-300 hover:text-white">&times;</button>
-            
-            <div class="flex items-center justify-center mb-10">
-                <img src="https://cdn-icons-png.flaticon.com/512/2873/2873733.png" class="w-20 h-20 mr-4 filter invert">
-                <h2 class="royal text-6xl text-transparent bg-clip-text bg-gradient-to-r from-gray-300 to-white">IMPERIAL BACKPACK</h2>
-            </div>
-
-            <div class="grid grid-cols-4 gap-6 overflow-y-auto h-[calc(100%-150px)] pr-4">
-                <div class="item-card">
-                    <img src="https://cdn-icons-png.flaticon.com/512/3238/3238699.png">
-                    <p class="font-bold text-yellow-300">Gold Pouch</p>
-                    <p class="text-gray-400">x 100</p>
-                </div>
-                <div class="item-card">
-                    <img src="https://cdn-icons-png.flaticon.com/512/2884/2884704.png">
-                    <p class="font-bold text-green-300">Wood Crate</p>
-                    <p class="text-gray-400">x 50</p>
-                </div>
-                <div class="item-card">
-                    <img src="https://cdn-icons-png.flaticon.com/512/4819/4819280.png">
-                    <p class="font-bold text-red-300">Food Ration</p>
-                    <p class="text-gray-400">x 200</p>
-                </div>
-                <div class="item-card">
-                    <img src="https://cdn-icons-png.flaticon.com/512/9639/9639088.png">
-                    <p class="font-bold text-cyan-300">24hr Speedup</p>
-                    <p class="text-gray-400">x 5</p>
-                </div>
-                <div class="item-card">
-                    <img src="https://cdn-icons-png.flaticon.com/512/2907/2907044.png">
-                    <p class="font-bold text-blue-300">Protection Shield</p>
-                    <p class="text-gray-400">x 3</p>
-                </div>
-                <div class="item-card">
-                    <img src="https://cdn-icons-png.flaticon.com/512/2907/2907572.png">
-                    <p class="font-bold text-purple-300">T4 Troop Scroll</p>
-                    <p class="text-gray-400">x 1</p>
-                </div>
-                <div class="item-card">
-                    <img src="https://cdn-icons-png.flaticon.com/512/6120/6120306.png">
-                    <p class="font-bold text-orange-300">Teleport Scroll</p>
-                    <p class="text-gray-400">x 10</p>
-                </div>
-            </div>
         </div>
     </div>
 
     <script>
-        const map = document.getElementById('world-map');
-        const castle = document.getElementById('player-castle');
-        const shieldBtn = document.getElementById('shield-btn');
-        
-        let isDragging = false;
-        let startX, startY;
-        let scrollX = -1800, scrollY = -1800; // Tracked camera position
-        let playerX = 2200, playerY = 2200; // Tracked castle position
-        let isUIOpen = false;
-        let isShieldActive = false;
+        // Item Database
+        const items = [
+            { name: "8h Shield", img: "https://cdn-icons-png.flaticon.com/512/2907/2907044.png", qty: 12, rarity: "epic" },
+            { name: "24h Speed", img: "https://cdn-icons-png.flaticon.com/512/9639/9639088.png", qty: 45, rarity: "rare" },
+            { name: "Warp Scroll", img: "https://cdn-icons-png.flaticon.com/512/6120/6120306.png", qty: 8, rarity: "legendary" },
+            { name: "Gold Crate", img: "https://cdn-icons-png.flaticon.com/512/3238/3238699.png", qty: 150, rarity: "common" },
+            { name: "T4 Contract", img: "https://cdn-icons-png.flaticon.com/512/2907/2907572.png", qty: 2, rarity: "legendary" }
+        ];
 
-        // Initial Map Position
-        updateDisplay();
-
-        // 1. UPDATE DISPLAY LOOP
-        function updateDisplay() {
-            map.style.transform = `translate(${scrollX}px, ${scrollY}px)`;
-            
-            const centerX = Math.abs(scrollX) + (window.innerWidth / 2);
-            const centerY = Math.abs(scrollY) + (window.innerHeight / 2);
-            
-            document.getElementById('ui-x').innerText = Math.round(centerX);
-            document.getElementById('ui-y').innerText = Math.round(centerY);
+        function initInventory() {
+            const grid = document.getElementById('inventory-list');
+            items.forEach(item => {
+                grid.innerHTML += `
+                    <div class="item-slot">
+                        <img src="${item.img}" alt="${item.name}">
+                        <p class="text-xs font-bold text-white">${item.name}</p>
+                        <p class="text-[10px] text-yellow-500">QTY: ${item.qty}</p>
+                    </div>
+                `;
+            });
         }
 
-        // 2. DRAGGING LOGIC
+        // Camera & Map Logic
+        let scrollX = -1850, scrollY = -1850;
+        let isDragging = false, startX, startY;
+        const map = document.getElementById('world-map');
+
         window.addEventListener('mousedown', (e) => {
-            if (isUIOpen || e.target.closest('.ui-btn') || e.target.closest('.modal')) return;
+            if(e.target.closest('.pointer-events-auto')) return;
             isDragging = true;
             startX = e.clientX - scrollX;
             startY = e.clientY - scrollY;
-            map.style.transition = "none";
         });
 
         window.addEventListener('mousemove', (e) => {
-            if (!isDragging || isUIOpen) return;
+            if(!isDragging) return;
             scrollX = e.clientX - startX;
             scrollY = e.clientY - startY;
-
-            scrollX = Math.min(0, Math.max(scrollX, -(4000 - window.innerWidth)));
-            scrollY = Math.min(0, Math.max(scrollY, -(4000 - window.innerHeight)));
+            map.style.transform = `translate(${scrollX}px, ${scrollY}px)`;
             
-            updateDisplay();
+            const worldX = Math.round(Math.abs(scrollX) + (window.innerWidth/2));
+            const worldY = Math.round(Math.abs(scrollY) + (window.innerHeight/2));
+            document.getElementById('coord-display').innerText = `X: ${worldX} Y: ${worldY}`;
         });
 
-        window.addEventListener('mouseup', () => { isDragging = false; });
+        window.addEventListener('mouseup', () => isDragging = false);
 
-        // 3. NAVIGATION TOOLS
+        function toggleUI(id) {
+            const el = document.getElementById(`ui-${id}`);
+            el.classList.toggle('hidden');
+            el.classList.toggle('flex');
+        }
+
         function recallCamera() {
+            scrollX = -2200 + (window.innerWidth/2);
+            scrollY = -2200 + (window.innerHeight/2);
             map.style.transition = "transform 0.5s ease-out";
-            scrollX = -(playerX - (window.innerWidth / 2));
-            scrollY = -(playerY - (window.innerHeight / 2));
-            updateDisplay();
+            map.style.transform = `translate(${scrollX}px, ${scrollY}px)`;
+            setTimeout(() => map.style.transition = "none", 500);
         }
 
-        function goToZenith() {
-            map.style.transition = "transform 0.5s ease-out";
-            scrollX = -(2000 - (window.innerWidth / 2));
-            scrollY = -(2000 - (window.innerHeight / 2));
-            updateDisplay();
-        }
-
-        function teleport() {
-            const tx = parseInt(document.getElementById('tp-x').value);
-            const ty = parseInt(document.getElementById('tp-y').value);
-            if(isNaN(tx) || isNaN(ty)) return alert("Enter valid X, Y coordinates!");
-
-            playerX = tx; playerY = ty;
-            castle.style.left = playerX + "px";
-            castle.style.top = playerY + "px";
-            
-            recallCamera();
-            alert("Strategic Warp Complete.");
-        }
-
-        // 4. INTERACTION & UI
-        function focusObj(name) {
-            if(isDragging) return;
-            if (name === 'Home') alert("Lord Bryyce's Imperial Fortress!");
-            else if (name === 'Zenith') alert("The legendary World Zenith! Only the strongest may conquer.");
-        }
-
-        function toggleModal(id) {
-            const m = document.getElementById('modal-' + id);
-            m.classList.toggle('active-modal');
-            isUIOpen = m.classList.contains('active-modal');
-        }
-
-        function closeAll(e) {
-            if(e.target.classList.contains('modal')) {
-                e.target.classList.remove('active-modal');
-                isUIOpen = false;
-            }
-        }
-
-        // 5. SHIELD SYSTEM
         function toggleShield() {
-            isShieldActive = !isShieldActive;
-            if (isShieldActive) {
-                castle.classList.add('shielded');
-                shieldBtn.innerHTML = '<img src="https://cdn-icons-png.flaticon.com/512/2907/2907044.png" class="w-5 h-5 inline-block mr-1 invert"> SHIELD ACTIVE (24h)';
-                shieldBtn.classList.remove('bg-emerald-600', 'hover:bg-emerald-700');
-                shieldBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
-                alert("Your castle is now protected for 24 hours!");
-            } else {
-                castle.classList.remove('shielded');
-                shieldBtn.innerHTML = '<img src="https://cdn-icons-png.flaticon.com/512/2907/2907044.png" class="w-5 h-5 inline-block mr-1 invert"> ACTIVATE SHIELD';
-                shieldBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
-                shieldBtn.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
-                alert("Shield deactivated. Beware, my Lord!");
-            }
+            const castle = document.getElementById('player-castle');
+            const btn = document.getElementById('shield-btn');
+            castle.classList.toggle('shield-glow');
+            const isActive = castle.classList.contains('shield-glow');
+            btn.innerText = isActive ? "SHIELD ACTIVE" : "ACTIVATE SHIELD";
+            btn.className = isActive ? "bg-blue-500 px-6 py-3 rounded-full font-bold" : "bg-emerald-600 px-6 py-3 rounded-full font-bold";
         }
+
+        initInventory();
     </script>
 </body>
 </html>
