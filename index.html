@@ -2,146 +2,150 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sovereign Bryyce: Tactical World</title>
+    <title>Sovereign Bryyce: Imperial Mall</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@900&family=Roboto+Condensed:wght@700&display=swap');
-        
-        :root { --gold: #ffd700; --bronze: #cd7f32; --tier4: #ef4444; }
-        body { background: #000; color: white; font-family: 'Roboto Condensed', sans-serif; overflow: hidden; margin: 0; }
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Oswald:wght@300;700&display=swap');
+        body { background: #050505; color: white; font-family: 'Oswald', sans-serif; overflow: hidden; margin: 0; }
         .royal { font-family: 'Cinzel', serif; }
-
-        /* 3D UI & PANELS */
-        .panel { background: rgba(10, 15, 20, 0.98); border: 2px solid #333; border-radius: 15px; box-shadow: 0 0 50px rgba(0,0,0,1); }
-        .hidden-panel { display: none; }
         
-        /* COLOSSEUM ARENA */
-        .arena-grid { display: grid; grid-template-columns: 1fr 100px 1fr; height: 100%; align-items: center; }
-        .hero-slot { width: 80px; height: 110px; border: 2px solid #555; border-radius: 8px; background: #111; position: relative; }
-        .hero-slot.active { border-color: var(--gold); box-shadow: 0 0 10px var(--gold); }
-        
-        /* ANIMATIONS */
-        @keyframes clash { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(30px); } }
-        .attacker { animation: clash 0.6s infinite; }
-        .defender { animation: clash 0.6s infinite reverse; }
+        #viewport { width: 100vw; height: 100vh; background: url('https://i.imgur.com/8T8C9po.jpeg') center; background-size: cover; position: relative; }
 
-        /* SCENE STYLING */
-        .viewport { width: 100vw; height: 100vh; background-size: cover; background-position: center; }
-        .btn-nav { cursor: pointer; transition: 0.3s; filter: grayscale(0.5); }
-        .btn-nav:hover { filter: grayscale(0) scale(1.1); }
+        /* MALL UI */
+        .mall-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 2000; display: none; padding: 40px; }
+        .mall-active { display: flex !important; flex-direction: column; }
+
+        .sidebar { width: 200px; border-right: 1px solid rgba(255,215,0,0.2); }
+        .tab-btn { padding: 15px; text-align: left; width: 100%; border-bottom: 1px solid #222; font-weight: bold; color: #888; transition: 0.3s; }
+        .tab-active { color: #ffd700; background: linear-gradient(90deg, rgba(255,215,0,0.1), transparent); border-left: 4px solid #ffd700; }
+
+        /* PACK CARDS */
+        .pack-card {
+            background: linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%);
+            border: 1px solid #333; border-radius: 12px; overflow: hidden;
+            position: relative; transition: 0.3s; cursor: pointer;
+        }
+        .pack-card:hover { transform: translateY(-5px); border-color: #ffd700; }
+        .price-tag { background: #ffd700; color: black; font-weight: 900; padding: 5px 15px; border-radius: 5px; }
+        
+        /* ITEM LIST */
+        .item-row { display: flex; align-items: center; gap: 10px; font-size: 12px; margin-bottom: 5px; color: #ccc; }
+        .item-icon { width: 24px; height: 24px; border-radius: 4px; border: 1px solid #444; }
+
+        /* FLASHY PURCHASE ANIMATION */
+        .purchase-flash { position: fixed; inset: 0; background: white; opacity: 0; pointer-events: none; z-index: 3000; }
     </style>
 </head>
 <body>
 
-    <div class="fixed top-0 w-full z-[1000] p-4 flex justify-between items-start">
-        <div class="flex items-center gap-4 bg-black/60 p-2 rounded-xl border border-white/10">
-            <div class="w-16 h-16 border-2 border-white rounded-lg overflow-hidden bg-blue-900">
-                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=BryyceFinal">
-            </div>
-            <div>
-                <h2 class="royal text-lg leading-none text-white">BRYYCE</h2>
-                <p class="text-[10px] text-yellow-500 font-bold uppercase">Might: <span id="might-val">175.4M</span></p>
-                <div class="flex gap-2 mt-1">
-                    <span class="text-[9px] bg-blue-600 px-1 rounded">VIP 15</span>
-                    <span class="text-[9px] bg-orange-600 px-1 rounded">LV. 60</span>
-                </div>
-            </div>
+    <div id="flash" class="purchase-flash"></div>
+
+    <div class="fixed top-0 w-full z-50 p-6 flex justify-between items-center pointer-events-none">
+        <div class="bg-black/90 px-6 py-2 border-b-2 border-yellow-500 rounded-b-xl pointer-events-auto">
+            <span class="text-yellow-500 font-black">MIGHT: <span id="might-val">185.2M</span></span>
         </div>
-        
-        <div class="flex gap-2">
-            <div class="bg-black/90 px-4 py-2 rounded-lg border-b-2 border-cyan-500 text-cyan-400 font-black">💎 520,400</div>
-            <div class="bg-black/90 px-4 py-2 rounded-lg border-b-2 border-purple-500 text-purple-400 font-black">⚡ 2,500</div>
+        <div class="bg-black/90 px-6 py-2 border-b-2 border-cyan-500 rounded-b-xl pointer-events-auto">
+            <span class="text-cyan-400 font-black">💎 <span id="gem-val">520,000</span></span>
         </div>
     </div>
 
-    <div id="view-world" class="viewport bg-[url('https://i.imgur.com/8T8C9po.jpeg')] relative">
-        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-center group cursor-pointer" onclick="openUI('colosseum')">
-            <img src="https://cdn-icons-png.flaticon.com/512/3069/3069512.png" class="w-48 drop-shadow-[0_0_30px_red]">
-            <p class="royal text-red-500 text-xl drop-shadow-lg">ENTER COLOSSEUM</p>
-        </div>
+    <div id="viewport">
+        <button onclick="toggleMall()" class="absolute bottom-10 right-10 bg-yellow-600 p-6 rounded-full shadow-2xl animate-bounce hover:scale-110 transition">
+            <span class="text-3xl">🛒</span>
+            <p class="text-[10px] font-black text-black">MALL</p>
+        </button>
     </div>
 
-    <div id="ui-colosseum" class="fixed inset-0 z-[2000] hidden flex items-center justify-center p-12 bg-black/90">
-        <div class="panel w-full max-w-6xl h-full flex flex-col overflow-hidden">
-            <div class="p-6 bg-gradient-to-r from-yellow-700 to-yellow-900 flex justify-between">
-                <h2 class="royal text-2xl tracking-widest text-white italic">COLOSSEUM RANK #142</h2>
-                <button onclick="closeUI('colosseum')" class="text-3xl">&times;</button>
-            </div>
-            
-            <div class="arena-grid p-10 flex-1">
-                <div class="flex flex-wrap gap-4 justify-center" id="player-squad">
-                    <div class="hero-slot active attacker"><img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Rose"></div>
-                    <div class="hero-slot active attacker"><img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Oath"></div>
-                    <div class="hero-slot active attacker"><img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Sage"></div>
-                </div>
+    <div id="mall" class="mall-overlay">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="royal text-4xl text-yellow-500">Imperial Mall</h2>
+            <button onclick="toggleMall()" class="text-5xl text-gray-500 hover:text-white">&times;</button>
+        </div>
 
-                <div class="text-center">
-                    <p class="royal text-4xl text-yellow-500">VS</p>
-                    <button onclick="startBattle()" id="battle-btn" class="mt-4 bg-red-600 px-6 py-2 rounded font-black uppercase text-xs">Fight</button>
-                </div>
-
-                <div class="flex flex-wrap gap-4 justify-center" id="enemy-squad">
-                    <div class="hero-slot defender opacity-50"><img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Enemy1"></div>
-                    <div class="hero-slot defender opacity-50"><img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Enemy2"></div>
-                    <div class="hero-slot defender opacity-50"><img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Enemy3"></div>
-                </div>
+        <div class="flex flex-1 overflow-hidden">
+            <div class="sidebar">
+                <div class="tab-btn tab-active">FEATURED</div>
+                <div class="tab-btn">HERO PACKS</div>
+                <div class="tab-btn">RESOURCES</div>
+                <div class="tab-btn">EQUIPMENT</div>
             </div>
 
-            <div id="combat-log" class="h-32 bg-black/50 p-4 font-mono text-[10px] text-green-400 overflow-y-auto border-t border-white/10">
-                > System initialized...<br>
-                > Awaiting Lord's command...
-            </div>
-        </div>
-    </div>
+            <div class="flex-1 p-8 overflow-y-auto grid grid-cols-2 gap-8" id="pack-container">
+                <div class="pack-card p-6" id="pack-gems" onclick="buyPack('gems')">
+                    <div class="absolute top-0 right-0 bg-red-600 text-[10px] px-3 py-1 font-bold italic">POPULAR!</div>
+                    <h3 class="royal text-2xl mb-4" id="gem-pack-title">Gem Packed ($4.99)</h3>
+                    <div class="item-row">
+                        <div class="item-icon bg-cyan-900"></div> 
+                        <span>Gems: <b class="text-cyan-400" id="gem-pack-amt">+20,000</b></span>
+                    </div>
+                    <div class="item-row">
+                        <div class="item-icon bg-blue-900"></div> 
+                        <span>Speed Ups: <b class="text-blue-300">24 Hours</b></span>
+                    </div>
+                    <div class="mt-6 flex justify-between items-center">
+                        <span class="text-gray-500 line-through text-xs">$19.99</span>
+                        <div class="price-tag">FREE (TEST)</div>
+                    </div>
+                </div>
 
-    <div class="fixed bottom-0 w-full h-24 bg-gradient-to-t from-black to-transparent flex justify-center items-center gap-12 z-[1000]">
-        <div class="btn-nav text-center" onclick="alert('Academy Open: Research Speed +25% active')">
-            <span class="text-4xl">🧪</span>
-            <p class="text-[9px] text-blue-400 font-bold">ACADEMY</p>
-        </div>
-        <div class="btn-nav text-center" onclick="openUI('colosseum')">
-            <span class="text-5xl">🏆</span>
-            <p class="text-[9px] text-yellow-500 font-bold">COLOSSEUM</p>
-        </div>
-        <div class="btn-nav text-center" onclick="alert('Workshop: Construction Speed +40% active')">
-            <span class="text-4xl">🛠️</span>
-            <p class="text-[9px] text-orange-400 font-bold">WORKSHOP</p>
+                <div class="pack-card p-6" onclick="buyPack('mats')">
+                    <h3 class="royal text-2xl mb-4">Material Madness</h3>
+                    <div class="item-row">
+                        <div class="item-icon bg-purple-900"></div> 
+                        <span>Rare Chests: <b class="text-purple-400">x50</b></span>
+                    </div>
+                    <div class="item-row">
+                        <div class="item-icon bg-orange-900"></div> 
+                        <span>Legendary Ember: <b class="text-orange-400">x5</b></span>
+                    </div>
+                    <div class="mt-6 flex justify-between items-center">
+                        <span class="text-gray-500 line-through text-xs">$99.99</span>
+                        <div class="price-tag">FREE (TEST)</div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
-        function openUI(id) { document.getElementById('ui-' + id).classList.remove('hidden-panel'); }
-        function closeUI(id) { document.getElementById('ui-' + id).classList.add('hidden-panel'); }
+        let totalGems = 520000;
+        let totalMight = 185200000;
+        let gemPackTier = 0;
+        const gemTiers = [
+            { title: "Gem Packed ($4.99)", gems: 20000, next: "Gem Packed ($19.99)" },
+            { title: "Gem Packed ($19.99)", gems: 85000, next: "Gem Packed ($49.99)" },
+            { title: "Gem Packed ($49.99)", gems: 250000, next: "Gem Packed ($99.99)" },
+            { title: "Gem Packed ($99.99)", gems: 600000, next: "MAXED" }
+        ];
 
-        function startBattle() {
-            const log = document.getElementById('combat-log');
-            const btn = document.getElementById('battle-btn');
-            btn.disabled = true;
-            btn.innerText = "Fighting...";
-            
-            let rounds = 0;
-            const events = [
-                "Rose Knight casts Shield!",
-                "Oath Keeper deals 4,500 damage.",
-                "Enemy Trickster is stunned.",
-                "Sovereign team uses Ultimate Skill!",
-                "Enemy line is breaking..."
-            ];
+        function toggleMall() { document.getElementById('mall').classList.toggle('mall-active'); }
 
-            const itv = setInterval(() => {
-                const line = document.createElement('div');
-                line.innerHTML = `> ${events[rounds % events.length]}`;
-                log.prepend(line);
-                rounds++;
+        function buyPack(type) {
+            // Visual Flash Effect
+            const flash = document.getElementById('flash');
+            flash.style.opacity = "1";
+            setTimeout(() => flash.style.opacity = "0", 100);
 
-                if(rounds > 10) {
-                    clearInterval(itv);
-                    log.prepend(document.createElement('div')).innerHTML = "> <span class='text-yellow-500 font-black'>VICTORY! RANK INCREASED TO #88. REWARD: 500 GEMS</span>";
-                    btn.innerText = "Claim Reward";
-                    btn.onclick = () => { location.reload(); };
+            if (type === 'gems') {
+                const current = gemTiers[gemPackTier];
+                totalGems += current.gems;
+                totalMight += (current.gems / 10); // 200+ Idea: Gems increase Might
+
+                // Scaling Logic
+                if (gemPackTier < gemTiers.length - 1) {
+                    gemPackTier++;
+                    document.getElementById('gem-pack-title').innerText = gemTiers[gemPackTier].title;
+                    document.getElementById('gem-pack-amt').innerText = "+" + gemTiers[gemPackTier].gems.toLocaleString();
                 }
-            }, 800);
+            } else if (type === 'mats') {
+                totalMight += 5000000; // Material madness gives massive might boost
+            }
+
+            // Update HUD
+            document.getElementById('gem-val').innerText = totalGems.toLocaleString();
+            document.getElementById('might-val').innerText = (totalMight / 1000000).toFixed(1) + "M";
+            
+            alert("PURCHASE SUCCESSFUL! Items added to account.");
         }
     </script>
 </body>
